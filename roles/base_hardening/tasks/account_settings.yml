@@ -1,0 +1,25 @@
+---
+#******************************************************************************
+# Role: linux-hardening
+# File: tasks/account_settings.yml
+#******************************************************************************
+- name: Set Password Expiration Days
+  lineinfile:
+    dest: '/etc/login.defs'
+    regexp: "PASS_MAX_DAYS"
+    line: "PASS_MAX_DAYS {{ password_max_day }}"
+    state: present
+
+- name: Set Password Expiration Days
+  lineinfile:
+    dest: '/etc/login.defs'
+    regexp: "PASS_MIN_DAYS"
+    line: "PASS_MIN_DAYS {{ password_min_day }}"
+    state: present
+
+- name: Set Default umask for Users
+  lineinfile:
+    dest: '/etc/login.defs'
+    regexp: "UMASK"
+    line: "UMASK 077"
+    state: present

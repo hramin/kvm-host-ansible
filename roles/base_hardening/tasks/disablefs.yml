@@ -1,0 +1,33 @@
+---
+- name: efi fact
+  ansible.builtin.set_fact:
+    booted_with_efi: "{{ ansible_mounts | selectattr('mount', 'equalto', '/boot/efi') | list | length > 0 }}"
+
+- name: disable file system kernel modules
+  become: 'yes'
+  ansible.builtin.lineinfile:
+    dest: /etc/modprobe.d/disablefs.conf
+    line: "install {{ item }} /bin/true"
+    mode: 0644
+    owner: root
+    group: root
+    state: present
+    create: 'yes'
+  with_items:
+    - "{{ fs_modules_blocklist }}"
+  when: not booted_with_efi
+
+- name: dont disable vfat file system kernel modules if efi
+  become: 'yes'
+  ansible.builtin.lineinfile:
+    dest: /etc/modprobe.d/disablefs.conf
+    line: "install {{ item }} /bin/true"
+    mode: 0644
+    owner: root
+    group: root
+    state: present
+    create: 'yes'
+  with_items:
+    - "{{ fs_modules_blocklist | reject('search','vfat') | list }}"
+  when: booted_with_efi|bool
+...

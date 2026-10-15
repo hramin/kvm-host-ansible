@@ -1,0 +1,80 @@
+# {{ ansible_managed }}
+# Ubuntu 22.04 hardened sshd_config
+# References: CIS Ubuntu 22.04 LTS Benchmark, Mozilla OpenSSH Guidelines (Modern)
+
+Include /etc/ssh/sshd_config.d/*.conf
+
+# ── Network ────────────────────────────────────────────────────────────────────
+Port {{ sshd_config.Port | default('22') }}
+ListenAddress {{ sshd_config.ListenAddress | default('0.0.0.0') }}
+AddressFamily inet
+
+# ── Host Keys (prefer Ed25519, then ECDSA; drop RSA) ──────────────────────────
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+
+# ── Cryptography (Mozilla Modern profile, OpenSSH 8.9 / Ubuntu 22.04) ─────────
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+# ── Logging ────────────────────────────────────────────────────────────────────
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# ── Authentication ─────────────────────────────────────────────────────────────
+LoginGraceTime 30
+PermitRootLogin {{ sshd_config.PermitRootLogin | default('without-password') }}
+StrictModes yes
+MaxAuthTries 3
+MaxSessions 2
+
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+
+IgnoreRhosts yes
+HostbasedAuthentication no
+
+PasswordAuthentication {{ sshd_config.PasswordAuthentication | default('no') }}
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+
+# Kerberos / GSSAPI — disabled
+KerberosAuthentication no
+GSSAPIAuthentication no
+
+# PAM session and account checks are still needed (fail2ban, pam_limits, etc.)
+UsePAM yes
+
+# ── Forwarding / tunnelling — all disabled ─────────────────────────────────────
+AllowAgentForwarding no
+AllowTcpForwarding no
+GatewayPorts no
+X11Forwarding no
+PermitTunnel no
+
+# ── Session hardening ──────────────────────────────────────────────────────────
+PrintMotd no
+TCPKeepAlive no
+Compression no
+ClientAliveInterval 300
+ClientAliveCountMax 2
+MaxStartups 10:30:60
+
+# ── Legal banner ───────────────────────────────────────────────────────────────
+Banner /etc/issue
+
+# ── Environment ───────────────────────────────────────────────────────────────
+AcceptEnv LANG LC_*
+PermitUserEnvironment no
+
+# ── Subsystems ─────────────────────────────────────────────────────────────────
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# ── Access control ─────────────────────────────────────────────────────────────
+{% if sshd_config.AllowUsers is defined %}
+AllowUsers {{ sshd_config.AllowUsers }}
+{% endif %}
+{% if sshd_config.AllowGroups is defined %}
+AllowGroups {{ sshd_config.AllowGroups }}
+{% endif %}

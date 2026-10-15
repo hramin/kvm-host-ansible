@@ -1,0 +1,5 @@
+.venv/
+*.retry
+.bash_history
+.viminfo
+tests/output/*.tmp

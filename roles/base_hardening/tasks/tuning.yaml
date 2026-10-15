@@ -1,0 +1,85 @@
+---
+# Apply kernel hardening parameters (CIS / STIG aligned, Ubuntu 22.04)
+# Removed: br_netfilter module load (Kubernetes-specific)
+# Removed: ip_forward=1, reserved_ports, ip_nonlocal_bind, nf_conntrack_*, somaxconn,
+#          rmem/wmem tuning, tcp_tw_reuse, bridge-nf-call-* (all K8s / performance-only)
+- name: Apply kernel hardening sysctl settings
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-hardening.conf
+    reload: yes
+  loop:
+    # ── IP Forwarding ────────────────────────────────────────────────────────
+    # Required for Kubernetes pod networking (kube-proxy + CNI)
+    - { key: "net.ipv4.ip_forward",                        value: "1" }
+
+    # ── IPv6 disable ─────────────────────────────────────────────────────────
+    - { key: "net.ipv6.conf.all.disable_ipv6",             value: "1" }
+    - { key: "net.ipv6.conf.default.disable_ipv6",         value: "1" }
+    - { key: "net.ipv6.conf.lo.disable_ipv6",              value: "1" }
+
+    # ── ICMP redirect protection ──────────────────────────────────────────────
+    - { key: "net.ipv4.conf.all.accept_redirects",         value: "0" }
+    - { key: "net.ipv4.conf.default.accept_redirects",     value: "0" }
+    - { key: "net.ipv4.conf.all.send_redirects",           value: "0" }
+    - { key: "net.ipv4.conf.default.send_redirects",       value: "0" }
+    - { key: "net.ipv6.conf.all.accept_redirects",         value: "0" }
+    - { key: "net.ipv6.conf.default.accept_redirects",     value: "0" }
+
+    # ── Source routing ────────────────────────────────────────────────────────
+    - { key: "net.ipv4.conf.all.accept_source_route",      value: "0" }
+    - { key: "net.ipv4.conf.default.accept_source_route",  value: "0" }
+
+    # ── Reverse-path filtering (anti-spoofing) ────────────────────────────────
+    - { key: "net.ipv4.conf.all.rp_filter",                value: "1" }
+    - { key: "net.ipv4.conf.default.rp_filter",            value: "1" }
+
+    # ── Martian packet logging ────────────────────────────────────────────────
+    - { key: "net.ipv4.conf.all.log_martians",             value: "1" }
+    - { key: "net.ipv4.conf.default.log_martians",         value: "1" }
+
+    # ── ICMP broadcast / bogus error suppression ──────────────────────────────
+    - { key: "net.ipv4.icmp_echo_ignore_broadcasts",       value: "1" }
+    - { key: "net.ipv4.icmp_ignore_bogus_error_responses", value: "1" }
+
+    # ── TCP security ──────────────────────────────────────────────────────────
+    - { key: "net.ipv4.tcp_syncookies",                    value: "1" }
+    - { key: "net.ipv4.tcp_rfc1337",                       value: "1" }
+    - { key: "net.ipv4.tcp_synack_retries",                value: "2" }
+    - { key: "net.ipv4.tcp_fin_timeout",                   value: "15" }
+    - { key: "net.ipv4.tcp_keepalive_time",                value: "300" }
+    - { key: "net.ipv4.tcp_keepalive_probes",              value: "5" }
+    - { key: "net.ipv4.tcp_keepalive_intvl",               value: "15" }
+
+    # ── Kernel information leakage ────────────────────────────────────────────
+    - { key: "kernel.dmesg_restrict",                      value: "1" }
+    - { key: "kernel.kptr_restrict",                       value: "2" }
+    - { key: "kernel.printk",                              value: "3 4 1 7" }
+
+    # ── Core dump / SUID hardening ────────────────────────────────────────────
+    - { key: "fs.suid_dumpable",                           value: "0" }
+    - { key: "kernel.core_uses_pid",                       value: "1" }
+
+    # ── SysRq disable ────────────────────────────────────────────────────────
+    - { key: "kernel.sysrq",                               value: "0" }
+
+    # ── ptrace scope (Yama LSM) ───────────────────────────────────────────────
+    - { key: "kernel.yama.ptrace_scope",                   value: "1" }
+
+    # ── ASLR ──────────────────────────────────────────────────────────────────
+    - { key: "kernel.randomize_va_space",                  value: "2" }
+
+    # ── BPF hardening (Ubuntu 22.04) ──────────────────────────────────────────
+    - { key: "kernel.unprivileged_bpf_disabled",           value: "1" }
+    - { key: "net.core.bpf_jit_harden",                    value: "2" }
+
+    # ── TTY / FIFO / link protections ─────────────────────────────────────────
+    - { key: "dev.tty.ldisc_autoload",                     value: "0" }
+    - { key: "fs.protected_fifos",                         value: "2" }
+    - { key: "fs.protected_hardlinks",                     value: "1" }
+    - { key: "fs.protected_symlinks",                      value: "1" }
+
+    # ── Swap minimisation ─────────────────────────────────────────────────────
+    - { key: "vm.swappiness",                              value: "10" }
