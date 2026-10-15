@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
-# Run site.yml twice against inventories/lab (test mode OFF) and check that the
-# second run changes nothing.
+# Apply site.yml to a clean host and prove that the last run changes nothing.
 #
 #   scripts/test-idempotency.sh [extra ansible-playbook args...]
+#   BOOTSTRAP=1 scripts/test-idempotency.sh [extra args...]
 #
-# Writes tests/output/run1.log and tests/output/run2.log. Exit status is 0 only
-# if run 1 succeeded and run 2's PLAY RECAP shows changed=0, failed=0 and
-# unreachable=0 for every host.
+# Default:      Run 1 = full play as the inventory's ansible_user (first contact),
+#               Run 2 = full play as the admin user.
+# BOOTSTRAP=1:  Run 0 = --tags bootstrap as the inventory's ansible_user,
+#               Run 1 and Run 2 = full play as the admin user.
+# Exit status 0 only if every run succeeded and Run 2's PLAY RECAP shows
+# changed=0, failed=0 and unreachable=0 for every host.
+# Logs: tests/output/run0.log (bootstrap only), run1.log, run2.log (git-ignored).
 #
 # Environment:
-#   RUN1_USER  ansible_user for run 1 (default: the inventory's ansible_user)
-#   RUN2_USER  ansible_user for run 2. Set it to an admin user when the
-#              first-connection account is not one: after run 1, sshd only
-#              admits members of the admin group.
-#   INVENTORY  inventory to use (default: inventories/lab/hosts.yml)
+#   ADMIN_USER         user for the runs after first contact
+#                      (default: the first entry of base_hardening_admin_users)
+#   ASK_BECOME_PASS=1  ask for the sudo password on the first run only (an
+#                      installer-created user's sudo usually wants one; the role
+#                      gives the admin group passwordless sudo)
+#   INVENTORY          default: inventories/lab/hosts.yml
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -21,61 +26,75 @@ cd "$(dirname "$0")/.."
 inventory="${INVENTORY:-inventories/lab/hosts.yml}"
 out_dir="tests/output"
 mkdir -p "$out_dir"
+rm -f "$out_dir"/run0.log "$out_dir"/run1.log "$out_dir"/run2.log
 
-export ANSIBLE_NOCOLOR=1
-export ANSIBLE_FORCE_COLOR=0
+export ANSIBLE_NOCOLOR=1 ANSIBLE_FORCE_COLOR=0
 
-run_playbook() {
-    local number="$1" user="$2"
-    shift 2
-    local args=(-i "$inventory" site.yml -e kvm_host_test_mode=off)
-    if [[ -n "$user" ]]; then
-        args+=(-e "ansible_user=$user")
-    fi
-    echo "==> run $number: ansible-playbook ${args[*]} $*" | tee "$out_dir/run$number.log"
-    set +e
-    ansible-playbook "${args[@]}" "$@" 2>&1 | tee -a "$out_dir/run$number.log"
-    local rc="${PIPESTATUS[0]}"
-    set -e
-    return "$rc"
-}
-
-# Print "host changed failed unreachable" for every PLAY RECAP line of a log.
-recap() {
-    sed -n '/^PLAY RECAP/,$p' "$1" |
-        sed -nE 's/^([^ ]+)[[:space:]]*:.*changed=([0-9]+).*unreachable=([0-9]+).*failed=([0-9]+).*/\1 \2 \4 \3/p'
-}
-
-if ! run_playbook 1 "${RUN1_USER:-}" "$@"; then
-    echo "FAIL: run 1 failed, see $out_dir/run1.log" >&2
+admin_user="${ADMIN_USER:-$(ansible-inventory -i "$inventory" --list | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+hostvars = data["_meta"]["hostvars"]
+names = [u["name"] for h in data.get("kvm_hosts", {}).get("hosts", [])
+         for u in hostvars[h].get("base_hardening_admin_users", [])]
+print(names[0] if names else "")')}"
+if [[ -z "$admin_user" ]]; then
+    echo "No admin user found; set ADMIN_USER." >&2
     exit 1
 fi
 
-run2_rc=0
-run_playbook 2 "${RUN2_USER:-}" "$@" || run2_rc=$?
+first_run_args=()
+if [[ "${ASK_BECOME_PASS:-0}" == 1 ]]; then
+    first_run_args=(--ask-become-pass)
+fi
 
-summary="$(recap "$out_dir/run2.log")"
-if [[ -z "$summary" ]]; then
-    echo "FAIL: no PLAY RECAP in $out_dir/run2.log (ansible-playbook exit code $run2_rc)" >&2
+# run_playbook <log name> <ansible_user or ""> [ansible-playbook args...]
+run_playbook() {
+    local name="$1" user="$2"
+    shift 2
+    local args=(-i "$inventory" site.yml)
+    if [[ -n "$user" ]]; then
+        args+=(-e "ansible_user=$user")
+    fi
+    echo "==> $name: ansible-playbook ${args[*]} $*" | tee "$out_dir/$name.log"
+    set +e
+    ansible-playbook "${args[@]}" "$@" 2>&1 | tee -a "$out_dir/$name.log"
+    local rc="${PIPESTATUS[0]}"
+    set -e
+    if [[ "$rc" -ne 0 ]]; then
+        echo "FAIL: $name exited with $rc, see $out_dir/$name.log" >&2
+        exit 1
+    fi
+}
+
+if [[ "${BOOTSTRAP:-0}" == 1 ]]; then
+    run_playbook run0 "" --tags bootstrap ${first_run_args[@]+"${first_run_args[@]}"} "$@"
+    run_playbook run1 "$admin_user" "$@"
+else
+    run_playbook run1 "" ${first_run_args[@]+"${first_run_args[@]}"} "$@"
+fi
+run_playbook run2 "$admin_user" "$@"
+
+# "host changed failed unreachable" for every line of Run 2's PLAY RECAP
+recap="$(sed -n '/^PLAY RECAP/,$p' "$out_dir/run2.log" |
+    sed -nE 's/^([^ ]+)[[:space:]]*:.*changed=([0-9]+).*unreachable=([0-9]+).*failed=([0-9]+).*/\1 \2 \4 \3/p')"
+if [[ -z "$recap" ]]; then
+    echo "FAIL: no PLAY RECAP in $out_dir/run2.log" >&2
     exit 1
 fi
 
 status=0
 echo
-echo "Second run (host changed failed unreachable):"
+echo "Run 2 PLAY RECAP (host changed failed unreachable):"
 while read -r host changed failed unreachable; do
     echo "  $host $changed $failed $unreachable"
     if [[ "$changed" != 0 || "$failed" != 0 || "$unreachable" != 0 ]]; then
         status=1
     fi
-done <<< "$summary"
+done <<< "$recap"
 
-if [[ "$status" -ne 0 || "$run2_rc" -ne 0 ]]; then
-    echo
-    echo "FAIL: the second run is not clean. Tasks that reported changed:" >&2
-    awk '/^TASK \[/ {task=$0} /^changed:/ {print "  " task}' "$out_dir/run2.log" | sort -u >&2
+if [[ "$status" -ne 0 ]]; then
+    echo "FAIL: Run 2 is not clean. Tasks that reported changed:" >&2
+    awk '/^TASK \[|^RUNNING HANDLER \[/ {task=$0} /^changed:/ {print "  " task}' "$out_dir/run2.log" | sort -u >&2
     exit 1
 fi
-
-echo
-echo "PASS: second run reported changed=0 failed=0 (logs in $out_dir/)"
+echo "PASS: Run 2 reported changed=0 failed=0 unreachable=0 (logs in $out_dir/)"
