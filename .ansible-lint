@@ -1,0 +1,10 @@
+---
+profile: production
+
+exclude_paths:
+  - .venv/
+  - collections/
+  - tests/output/
+
+# No rule is skipped. Intentional exceptions are marked inline with
+# "# noqa: <rule>" and a reason, and listed in README "Lint exceptions".

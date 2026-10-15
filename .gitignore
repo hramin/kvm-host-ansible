@@ -3,3 +3,5 @@
 .bash_history
 .viminfo
 tests/output/*.tmp
+collections/
+.ansible/
