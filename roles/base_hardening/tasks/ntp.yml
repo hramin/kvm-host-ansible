@@ -1,0 +1,23 @@
+---
+# chrony is installed in packages.yml; on Debian installing it already removes
+# systemd-timesyncd, this also purges leftovers and the other NTP daemons.
+- name: Purge time daemons that conflict with chrony
+  ansible.builtin.apt:
+    name: "{{ base_hardening_ntp_conflicting_packages }}"
+    state: absent
+    purge: true
+
+- name: Configure chrony
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chrony
+
+- name: Enable and start chrony
+  ansible.builtin.systemd_service:
+    name: chrony
+    enabled: true
+    state: started

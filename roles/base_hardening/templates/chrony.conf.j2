@@ -1,0 +1,35 @@
+# {{ ansible_managed }}
+# NTP client only: chronyd serves no time ("port 0") and accepts no remote
+# commands ("cmdport 0"); chronyc still works locally over the Unix socket.
+
+{% for pool in base_hardening_chrony_pools %}
+pool {{ pool }} iburst
+{% endfor %}
+{% for server in base_hardening_chrony_servers %}
+server {{ server }} iburst
+{% endfor %}
+
+# Debian defaults: extra sources from DHCP and drop-in directories.
+sourcedir /run/chrony-dhcp
+sourcedir /etc/chrony/sources.d
+confdir /etc/chrony/conf.d
+
+keyfile /etc/chrony/chrony.keys
+driftfile /var/lib/chrony/chrony.drift
+ntsdumpdir /var/lib/chrony
+logdir /var/log/chrony
+maxupdateskew 100.0
+
+# Keep the RTC in sync; step the clock only right after start (guest clocks
+# and TLS certificates do not like time jumps later on).
+rtcsync
+makestep {{ base_hardening_chrony_makestep }}
+{% if ansible_facts['distribution_major_version'] | int >= 13 %}
+# Debian 13 (chrony 4.6) no longer ships right/UTC; read the leap second list.
+leapseclist /usr/share/zoneinfo/leap-seconds.list
+{% else %}
+leapsectz right/UTC
+{% endif %}
+
+port 0
+cmdport 0
