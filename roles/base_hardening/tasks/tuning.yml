@@ -1,4 +1,6 @@
 ---
+# yamllint disable rule:commas
+# (Intentional: the sysctl list below keeps the seed's column-aligned table.)
 # Apply kernel hardening parameters (CIS / STIG aligned, Debian 12/13)
 # Removed: br_netfilter module load (Kubernetes-specific)
 # Removed: ip_forward=1, reserved_ports, ip_nonlocal_bind, nf_conntrack_*, somaxconn,

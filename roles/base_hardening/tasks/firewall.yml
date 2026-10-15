@@ -28,16 +28,13 @@
     mode: "0644"
   register: base_hardening_nftables_override
 
-# Before the unit is started for the first time, so systemd knows the new ExecStop.
-- name: Reload systemd after changing the nftables drop-in
-  ansible.builtin.systemd_service:
-    daemon_reload: true
-  when: base_hardening_nftables_override is changed
-
+# daemon-reload (only when the drop-in changed) before the unit is enabled and
+# started, so systemd already knows the new ExecStop.
 - name: Enable nftables at boot
   ansible.builtin.systemd_service:
     name: nftables
     enabled: true
+    daemon_reload: "{{ base_hardening_nftables_override is changed }}"
 
 # Container test mode: the ruleset is rendered and validated, not loaded.
 - name: Start nftables (loads the ruleset)
