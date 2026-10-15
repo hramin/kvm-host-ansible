@@ -2,7 +2,7 @@
 *.retry
 .bash_history
 .viminfo
-tests/output/*.tmp
 collections/
 .ansible/
-tests/tcg-vm/inventory/group_vars/all.yml
+# Test logs are not committed (scripts/test-idempotency.sh writes them here).
+tests/output/
