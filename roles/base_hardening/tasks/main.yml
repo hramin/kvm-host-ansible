@@ -38,7 +38,3 @@
 - name: Auditd
   ansible.builtin.import_tasks: auditd.yml
   tags: [logging, auditd]
-
-- name: Fail2ban
-  ansible.builtin.import_tasks: fail2ban.yml
-  tags: [fail2ban]

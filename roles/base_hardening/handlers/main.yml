@@ -53,8 +53,3 @@
   ansible.builtin.command: systemctl kill --kill-who=main --signal=SIGHUP auditd.service  # noqa: command-instead-of-module
   changed_when: true
   when: base_hardening_test_mode != 'container'
-
-- name: Restart fail2ban
-  ansible.builtin.systemd_service:
-    name: fail2ban
-    state: restarted

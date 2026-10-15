@@ -1,6 +1,6 @@
 # {{ ansible_managed }}
 # Debian's nftables.service runs "nft flush ruleset" on stop (and therefore on
-# restart), which would also wipe libvirt's and fail2ban's tables. Stop removes
+# restart), which would also wipe libvirt's tables. Stop removes
 # only this role's table instead; start/reload load /etc/nftables.conf, which
 # replaces only that table too.
 [Service]

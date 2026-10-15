@@ -3,10 +3,9 @@
 #
 # Host firewall for a KVM/libvirt hypervisor.
 #
-# There is deliberately NO "flush ruleset" here. libvirt (ip/ip6
-# libvirt_network tables, or iptables-nft tables on Debian 12) and fail2ban
-# (inet f2b-table) keep their own tables in the same ruleset, and loading this
-# file must never remove them. Only the table below is replaced — atomically,
+# There is deliberately NO "flush ruleset" here. libvirt keeps its own tables
+# in the same ruleset (iptables-nft tables, or ip/ip6 libvirt_network with
+# its nftables backend), and loading this file must never remove them. Only the table below is replaced — atomically,
 # because nft applies the whole file as one transaction: the first line makes
 # sure the table exists, the second deletes it, the block recreates it.
 #
