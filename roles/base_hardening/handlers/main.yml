@@ -53,11 +53,13 @@
   changed_when: true
   when: base_hardening_test_mode != 'container'
 
-# SIGHUP: auditd re-reads auditd.conf (Debian's unit allows reload).
+# auditd re-reads auditd.conf on SIGHUP. Debian's auditd.service has no
+# ExecReload ("reload is not applicable"), and a restart would also re-run
+# audit-rules.service, so signal the daemon directly. No module sends a
+# signal to a unit, hence the command.
 - name: Reload auditd
-  ansible.builtin.systemd_service:
-    name: auditd
-    state: reloaded
+  ansible.builtin.command: systemctl kill --kill-who=main --signal=SIGHUP auditd.service  # noqa: command-instead-of-module
+  changed_when: true
   when: base_hardening_test_mode != 'container'
 
 - name: Restart fail2ban
