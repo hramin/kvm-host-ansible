@@ -1,0 +1,27 @@
+---
+galaxy_info:
+  role_name: kvm_host
+  namespace: hramin
+  author: hramin
+  description: >-
+    Debian 12/13 KVM/libvirt hypervisor: virtualization preflight checks, QEMU and
+    libvirt packages, kernel modules and hypervisor sysctls, libvirt daemon and
+    socket access, NVMe directory storage pool, NAT/bridge networks,
+    libvirt-guests and log rotation.
+  license: proprietary  # no LICENSE file in this repository yet
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - kvm
+    - libvirt
+    - qemu
+    - virtualization
+    - debian
+
+# Meant to run after base_hardening (see site.yml); no hard dependency so the
+# role can also be applied on its own.
+dependencies: []

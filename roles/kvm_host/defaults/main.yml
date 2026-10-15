@@ -1,0 +1,153 @@
+---
+# =============================================================================
+# kvm_host — defaults
+# Every variable the role reads is listed here with what it does.
+# README "Variables" has the same list as a table.
+# =============================================================================
+
+# ── Test mode ────────────────────────────────────────────────────────────────
+# "off" for real hosts. "container" (molecule Docker scenario only) skips what a
+# container cannot do: kernel module loading, live non-namespaced sysctls, the
+# /dev/kvm check — plus, in base_hardening, the live nftables load, auditd and
+# GRUB. Everything else runs. See README "Container test mode".
+kvm_host_test_mode: "off"
+
+# ── Preflight ────────────────────────────────────────────────────────────────
+# Debian major versions this role supports.
+kvm_host_supported_debian_versions: ["12", "13"]
+# Allow a host without hardware virtualization (no vmx/svm, no /dev/kvm), e.g. a
+# lab VM without nested virtualization. Guests then run under QEMU TCG software
+# emulation (10-50x slower); the play prints a warning. Never for production.
+kvm_host_allow_software_emulation: false
+# KVM vendor module: auto (vmx -> kvm_intel, svm -> kvm_amd), kvm_intel, kvm_amd, none.
+kvm_host_kvm_vendor_module: auto
+# Let guests run their own hypervisor (kvm_intel/kvm_amd "nested" parameter).
+# Takes effect when the module is (re)loaded, i.e. after a reboot.
+kvm_host_nested_virtualization: true
+
+# ── Packages ─────────────────────────────────────────────────────────────────
+# Hypervisor packages (Debian names; installed without recommends).
+kvm_host_packages:
+  - qemu-system-x86
+  - qemu-utils
+  - libvirt-daemon-system
+  - libvirt-clients
+  - ovmf             # UEFI firmware for guests
+  - lvm2
+  - dnsmasq-base     # DHCP/DNS for libvirt NAT networks
+  - python3-libvirt  # community.libvirt modules
+  - python3-lxml     # community.libvirt modules
+  - numactl
+  - nvme-cli
+# Additional site-specific packages (e.g. virtinst, swtpm-tools).
+kvm_host_packages_extra: []
+
+# ── Kernel ───────────────────────────────────────────────────────────────────
+# Modules loaded now and at boot (modules-load.d); the vendor module is added.
+kvm_host_kernel_modules: [kvm, vhost_net, tun, bridge]
+# Hypervisor sysctls, written to /etc/sysctl.d/60-kvm-host.conf with the "why"
+# as a comment and applied live. net.bridge.* keys exist only while br_netfilter
+# is loaded: they are applied when it is, and re-applied by a udev rule whenever
+# br_netfilter loads later (e.g. pulled in by Docker).
+kvm_host_sysctl_settings:
+  - name: net.bridge.bridge-nf-call-iptables
+    value: 0
+    why: Bridged guest frames must not pass the host's IPv4 netfilter hooks (host rules would filter VMs; costs CPU).
+  - name: net.bridge.bridge-nf-call-ip6tables
+    value: 0
+    why: Same for IPv6 - guest traffic on a bridge is the guest's business, not the host firewall's.
+  - name: net.bridge.bridge-nf-call-arptables
+    value: 0
+    why: Same for ARP - do not run bridged ARP through arptables.
+  - name: vm.swappiness
+    value: 10
+    why: Prefer dropping page cache over swapping guest RAM; a swapped-out guest page stalls the whole vCPU.
+  - name: vm.dirty_background_ratio
+    value: 5
+    why: Start background writeback early so host-cached guest writes reach the NVMe in small batches.
+  - name: vm.dirty_ratio
+    value: 10
+    why: Cap dirty page cache so a forced flush cannot block every guest's I/O for long on large-RAM hosts.
+  - name: vm.zone_reclaim_mode
+    value: 0
+    why: On NUMA hosts take memory from the other node instead of reclaiming locally (avoids guest latency spikes).
+  - name: fs.aio-max-nr
+    value: 1048576
+    why: QEMU aio=native needs AIO contexts per disk queue; the 65536 default runs out with many NVMe-backed guests.
+
+# ── libvirt ──────────────────────────────────────────────────────────────────
+# Arguments for libvirtd. Debian's unit default is "--timeout 120", which makes
+# the daemon exit after 2 idle minutes; empty keeps it running.
+kvm_host_libvirtd_args: ""
+# Users added to the libvirt group (full libvirt access over qemu:///system).
+kvm_host_libvirt_users: "{{ base_hardening_admin_users | default([]) | map(attribute='name') | list }}"
+# Group that may use the libvirt sockets (socket mode 0770, no polkit).
+kvm_host_libvirt_socket_group: libvirt
+
+# ── Storage pool (directory pool on local NVMe) ─────────────────────────────
+# Name of the libvirt storage pool.
+kvm_host_storage_pool_name: nvme
+# Directory holding guest images; put the NVMe filesystem (XFS/ext4) here.
+kvm_host_storage_pool_path: /var/lib/libvirt/nvme
+# Fail unless the pool path is its own mount point (protects the root
+# filesystem from filling with guest images when the NVMe is not mounted).
+kvm_host_storage_pool_require_mountpoint: false
+
+# ── Networks ─────────────────────────────────────────────────────────────────
+# libvirt's "default" NAT network (virbr0, 192.168.122.0/24, dnsmasq on the host).
+# false: stopped and not autostarted (kept defined, so "virsh net-start default"
+# still works). true: defined, started and autostarted — useful on single-NIC labs.
+kvm_host_libvirt_default_network_enabled: false
+# Linux bridge for bridged guests (systemd-networkd). Off by default: on a
+# single-NIC host enslaving the NIC moves the host's IP and can cut SSH.
+kvm_host_bridge_enabled: false
+# Bridge interface name.
+kvm_host_bridge_name: br0
+# Physical uplinks enslaved to the bridge. [] = bridge without uplink.
+kvm_host_bridge_interfaces: []
+# Host address on the bridge: none (L2 only, the host is not reachable via the
+# bridge), dhcp, or static (then set kvm_host_bridge_address/gateway/dns).
+kvm_host_bridge_ip_mode: none
+# Static address in CIDR form, e.g. 10.0.20.5/24 (ip_mode static only).
+kvm_host_bridge_address: ""
+# Default gateway on the bridge (ip_mode static only, optional).
+kvm_host_bridge_gateway: ""
+# DNS servers for the bridge (ip_mode static only, optional).
+kvm_host_bridge_dns: []
+# Spanning tree on the bridge.
+kvm_host_bridge_stp: false
+# Allow the interface carrying the default route (usually the management NIC)
+# in kvm_host_bridge_interfaces. Only with console access to the host.
+kvm_host_bridge_allow_default_route_interface: false
+# libvirt network (forward mode=bridge) pointing at the bridge, for
+# "virt-install --network network=<name>".
+kvm_host_bridge_libvirt_network: host-bridge
+
+# ── libvirt-guests (what happens to running guests on host shutdown/boot) ────
+# On boot: "start" restarts guests that were running at shutdown; "ignore" leaves them off.
+kvm_host_guests_on_boot: start
+# Seconds between starting guests on boot.
+kvm_host_guests_start_delay: 0
+# On shutdown: "shutdown" (ACPI, clean) or "suspend" (managed save: RAM written
+# to /var/lib/libvirt/qemu/save and resumed on boot — needs disk space = guest RAM).
+kvm_host_guests_on_shutdown: shutdown
+# Guests shut down in parallel (0 = one at a time).
+kvm_host_guests_parallel_shutdown: 4
+# Seconds to wait for guests to shut down before the host continues.
+kvm_host_guests_shutdown_timeout: 300
+# Bypass the page cache when saving guests (on_shutdown: suspend).
+kvm_host_guests_bypass_cache: false
+# Resync the guest clock after resume (needs the QEMU guest agent).
+kvm_host_guests_sync_time: true
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+# virtlogd rotates the per-guest QEMU logs itself: size in bytes per log file...
+kvm_host_virtlogd_max_size: 2097152
+# ...and number of rotated files kept per guest.
+kvm_host_virtlogd_max_backups: 3
+# logrotate for /var/log/libvirt/*.log (daemon logs).
+kvm_host_logrotate_frequency: weekly
+# Rotated daemon logs kept.
+kvm_host_logrotate_rotate: 8
+# Rotate daemon logs early when bigger than this.
+kvm_host_logrotate_maxsize: 100M

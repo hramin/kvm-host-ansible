@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+# Hypervisor kernel parameters (kvm_host_sysctl_settings). Hardening
+# parameters live in 99-hardening.conf (base_hardening).
+{% for setting in kvm_host_sysctl_settings %}
+
+# {{ setting.why }}
+{{ setting.name }} = {{ setting.value }}
+{% endfor %}

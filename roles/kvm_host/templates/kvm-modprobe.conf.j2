@@ -1,0 +1,3 @@
+# {{ ansible_managed }}
+# Nested virtualization (guests may run their own KVM). Applied when the module loads.
+options {{ kvm_host_vendor_module }} nested={{ kvm_host_nested_virtualization | bool | ternary('1', '0') }}
