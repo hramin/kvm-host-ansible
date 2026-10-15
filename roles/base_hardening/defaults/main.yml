@@ -153,37 +153,3 @@ base_hardening_journald_system_max_file_size: 128M
 base_hardening_journald_max_retention: 3month
 # Also forward to a syslog daemon (Debian 12/13 install none by default).
 base_hardening_journald_forward_to_syslog: false
-
-# ── auditd ───────────────────────────────────────────────────────────────────
-# Install the role's audit rules (templates/hardening.rules.j2).
-base_hardening_auditd_apply_rules: true
-# Make the loaded rules immutable (-e 2). Later rule changes need a reboot;
-# the rules handler detects this and reports it instead of failing.
-base_hardening_auditd_immutable: true
-# Account notified by auditd mail actions.
-base_hardening_auditd_action_mail_acct: root
-# Action when free space reaches admin_space_left.
-base_hardening_auditd_admin_space_left_action: suspend
-# Action on a disk write error.
-base_hardening_auditd_disk_error_action: suspend
-# Action when the audit partition is full.
-base_hardening_auditd_disk_full_action: suspend
-# Maximum size of one audit log file in MB.
-base_hardening_auditd_max_log_file: 8
-# What to do when max_log_file is reached.
-base_hardening_auditd_max_log_file_action: keep_logs
-# Failure mode (-f): 0 silent, 1 printk, 2 panic.
-base_hardening_auditd_mode: 1
-# Number of rotated logs kept (with max_log_file_action = rotate).
-base_hardening_auditd_num_logs: 5
-# Free space (MB) that triggers space_left_action.
-base_hardening_auditd_space_left: 75
-# The old role used "email", which needs an MTA (/usr/lib/sendmail) that a
-# minimal Debian install does not have, so the warning would go nowhere; log it.
-base_hardening_auditd_space_left_action: syslog
-# Add the audit kernel arguments to GRUB and run update-grub (handler).
-base_hardening_auditd_grub_cmdline_enabled: true
-# Enable auditing from early boot, before auditd starts.
-base_hardening_grub_audit_cmdline: audit=1
-# Kernel audit backlog so early-boot events are not lost.
-base_hardening_grub_audit_backlog_cmdline: audit_backlog_limit=8192

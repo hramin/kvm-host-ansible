@@ -26,30 +26,7 @@
     name: systemd-journald
     state: restarted
 
-- name: Update grub
-  ansible.builtin.command: update-grub
-  changed_when: true
-
-# With -e 2 already active the kernel refuses rule changes until reboot;
-# report that instead of failing the play.
+# augenrules rebuilds /etc/audit/audit.rules from rules.d and loads it.
 - name: Load audit rules
-  ansible.builtin.shell: |
-    set -o pipefail
-    if auditctl -s | grep -q '^enabled 2'; then
-      echo "audit rules are immutable (-e 2): the new rules apply after the next reboot"
-    else
-      augenrules --load
-    fi
-  args:
-    executable: /bin/bash
+  ansible.builtin.command: augenrules --load
   changed_when: true
-  when: base_hardening_test_mode != 'container'
-
-# auditd re-reads auditd.conf on SIGHUP. Debian's auditd.service has no
-# ExecReload ("reload is not applicable"), and a restart would also re-run
-# audit-rules.service, so signal the daemon directly. No module sends a
-# signal to a unit, hence the command.
-- name: Reload auditd
-  ansible.builtin.command: systemctl kill --kill-who=main --signal=SIGHUP auditd.service  # noqa: command-instead-of-module
-  changed_when: true
-  when: base_hardening_test_mode != 'container'
