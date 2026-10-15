@@ -1,0 +1,26 @@
+# Test image: official Debian image + systemd as PID 1, python3 and sudo
+# (what Ansible needs on a real host for the first connection).
+FROM {{ item.image }}
+
+ENV container=docker \
+    DEBIAN_FRONTEND=noninteractive
+
+# - policy-rc.d: Debian's Docker images forbid package scripts to start
+#   services; a real host has no such file, so remove it to behave like one.
+# - udev is masked: in a privileged container udevd would receive the host's
+#   uevents and could act on the host's devices.
+# - chronyd gets -x: it runs and is configured by the role, but must not
+#   steer the clock of the kernel it shares with the machine running Docker.
+# None of this is part of the role; it only makes the container a safe stand-in.
+RUN rm -f /usr/sbin/policy-rc.d \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends systemd systemd-sysv python3 sudo \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && systemctl mask systemd-udevd.service systemd-udevd-control.socket \
+       systemd-udevd-kernel.socket systemd-udev-trigger.service systemd-udev-settle.service \
+       getty@.service console-getty.service \
+    && printf '# molecule test harness: do not discipline the shared kernel clock\nDAEMON_OPTS="-F 1 -x"\n' > /etc/default/chrony
+
+STOPSIGNAL SIGRTMIN+3
+CMD ["/lib/systemd/systemd"]

@@ -1,0 +1,11 @@
+---
+# Collections for this scenario (same as the repository's requirements.yml).
+collections:
+  - name: ansible.posix
+    version: ">=1.5.4"
+  - name: community.general
+    version: ">=8.0.0"
+  - name: community.libvirt
+    version: ">=1.3.0"
+  - name: community.docker
+    version: ">=3.10.0"

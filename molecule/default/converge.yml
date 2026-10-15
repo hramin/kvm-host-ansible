@@ -1,0 +1,4 @@
+---
+# Converge runs the real playbook, unchanged.
+- name: Converge
+  ansible.builtin.import_playbook: ../../site.yml
