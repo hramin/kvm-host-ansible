@@ -12,6 +12,7 @@
   ansible.builtin.command: grep -m1 -owE 'vmx|svm' /proc/cpuinfo
   register: kvm_host_cpu_virt_flag
   changed_when: false
+  check_mode: false   # read-only; must also run under --check
   failed_when: kvm_host_cpu_virt_flag.rc > 1
 
 - name: Choose the KVM vendor module

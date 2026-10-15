@@ -48,6 +48,7 @@
   register: base_hardening_nft_table
   changed_when: false
   failed_when: false
+  check_mode: false   # read-only; must also run under --check
 
 - name: Reload the ruleset when the host firewall table is missing
   ansible.builtin.systemd_service:

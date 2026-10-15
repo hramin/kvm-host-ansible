@@ -2,8 +2,8 @@
 # Takes a fresh Debian 12/13 server to a ready KVM/libvirt virtualization host.
 #
 #   ansible-galaxy collection install -r requirements.yml
-#   ansible-playbook site.yml                     # normal run (no package upgrade)
-#   ansible-playbook site.yml --tags upgrade      # opt-in full package upgrade only
+#   ansible-playbook site.yml --tags bootstrap   # first contact: preflight, admin users, sshd
+#   ansible-playbook site.yml                    # everything (again: changed=0)
 - name: Prepare Debian KVM/libvirt virtualization hosts
   hosts: kvm_hosts
   become: true
