@@ -1,21 +1,6 @@
 ---
-# QEMU guest logs (/var/log/libvirt/qemu/*.log) are written through virtlogd,
-# which rotates them itself at max_size/max_backups.
-- name: Configure virtlogd log rotation
-  ansible.builtin.lineinfile:
-    path: /etc/libvirt/virtlogd.conf
-    regexp: '^#?\s*{{ item.key }}\s*='
-    line: "{{ item.key }} = {{ item.value }}"
-    owner: root
-    group: root
-    mode: "0644"
-  loop:
-    - { key: max_size, value: "{{ kvm_host_virtlogd_max_size }}" }
-    - { key: max_backups, value: "{{ kvm_host_virtlogd_max_backups }}" }
-  notify: Reload virtlogd
-
 # These replace the files libvirt-daemon-system ships under the same names
-# (two logrotate files for one log would make logrotate fail).
+# (a second logrotate file for the same logs would make logrotate fail).
 - name: Rotate libvirt daemon logs
   ansible.builtin.template:
     src: logrotate-libvirtd.j2
@@ -24,7 +9,7 @@
     group: root
     mode: "0644"
 
-- name: Rotate QEMU guest logs (fallback when virtlogd is disabled)
+- name: Rotate QEMU guest logs
   ansible.builtin.template:
     src: logrotate-libvirtd-qemu.j2
     dest: /etc/logrotate.d/libvirtd.qemu

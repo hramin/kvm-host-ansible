@@ -76,13 +76,8 @@ kvm_host_sysctl_settings:
     why: QEMU aio=native needs AIO contexts per disk queue; the 65536 default runs out with many NVMe-backed guests.
 
 # ── libvirt ──────────────────────────────────────────────────────────────────
-# Arguments for libvirtd. Debian's unit default is "--timeout 120", which makes
-# the daemon exit after 2 idle minutes; empty keeps it running.
-kvm_host_libvirtd_args: ""
 # Users added to the libvirt group (full libvirt access over qemu:///system).
 kvm_host_libvirt_users: "{{ base_hardening_admin_users | default([]) | map(attribute='name') | list }}"
-# Group that may use the libvirt sockets (socket mode 0770, no polkit).
-kvm_host_libvirt_socket_group: libvirt
 
 # ── Storage pool (directory pool on local NVMe) ─────────────────────────────
 # Name of the libvirt storage pool.
@@ -115,15 +110,3 @@ kvm_host_guests_shutdown_timeout: 300
 kvm_host_guests_bypass_cache: false
 # Resync the guest clock after resume (needs the QEMU guest agent).
 kvm_host_guests_sync_time: true
-
-# ── Logging ──────────────────────────────────────────────────────────────────
-# virtlogd rotates the per-guest QEMU logs itself: size in bytes per log file...
-kvm_host_virtlogd_max_size: 2097152
-# ...and number of rotated files kept per guest.
-kvm_host_virtlogd_max_backups: 3
-# logrotate for /var/log/libvirt/*.log (daemon logs).
-kvm_host_logrotate_frequency: weekly
-# Rotated daemon logs kept.
-kvm_host_logrotate_rotate: 8
-# Rotate daemon logs early when bigger than this.
-kvm_host_logrotate_maxsize: 100M

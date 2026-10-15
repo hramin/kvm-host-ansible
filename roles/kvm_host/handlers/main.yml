@@ -1,23 +1,7 @@
 ---
-# Handlers run in the order defined here.
-
-- name: Reload systemd units for libvirt
-  ansible.builtin.systemd_service:
-    daemon_reload: true
-
 # Restarting libvirtd does not stop running guests (QEMU processes are
-# independent). A socket unit cannot be restarted while its service runs,
-# so stop the service, restart the sockets, start the service again.
+# independent of the daemon).
 - name: Restart libvirtd
-  ansible.builtin.shell: |
-    set -e
-    systemctl stop libvirtd.service
-    systemctl restart libvirtd.socket libvirtd-ro.socket libvirtd-admin.socket
-    systemctl start libvirtd.service
-  changed_when: true
-
-# SIGUSR1: virtlogd re-executes with the new config and keeps open log files.
-- name: Reload virtlogd
   ansible.builtin.systemd_service:
-    name: virtlogd
-    state: reloaded
+    name: libvirtd
+    state: restarted

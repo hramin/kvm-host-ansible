@@ -1,6 +1,7 @@
 ---
-# Debian runs the monolithic libvirtd (socket activated). Its unit default
-# "--timeout 120" stops the daemon after two idle minutes; keep it running.
+# Debian starts libvirtd socket-activated with "--timeout 120", so the daemon
+# exits after two idle minutes and "running" would differ from run to run.
+# Empty arguments keep it running.
 - name: Keep libvirtd running (no idle timeout)
   ansible.builtin.template:
     src: libvirtd.default.j2
@@ -10,66 +11,14 @@
     mode: "0644"
   notify: Restart libvirtd
 
-# Debian default: world-connectable sockets (0666) + polkit. Here: only root
-# and the libvirt group can connect, and libvirtd does not ask polkit (so
-# access keeps working with /proc hidepid and without a polkit agent).
-- name: Create libvirt socket drop-in directories
-  ansible.builtin.file:
-    path: "/etc/systemd/system/{{ item }}.d"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  loop: [libvirtd.socket, libvirtd-ro.socket]
-
-- name: Restrict the libvirt sockets to the libvirt group
-  ansible.builtin.template:
-    src: libvirtd-socket-override.conf.j2
-    dest: "/etc/systemd/system/{{ item }}.d/10-kvm-host.conf"
-    owner: root
-    group: root
-    mode: "0644"
-  loop: [libvirtd.socket, libvirtd-ro.socket]
-  notify:
-    - Reload systemd units for libvirt
-    - Restart libvirtd
-
-- name: Authenticate libvirt socket clients by socket permissions only
-  ansible.builtin.lineinfile:
-    path: /etc/libvirt/libvirtd.conf
-    regexp: '^#?\s*{{ item.key }}\s*='
-    line: '{{ item.key }} = "{{ item.value }}"'
-    owner: root
-    group: root
-    mode: "0644"
-  loop:
-    - { key: auth_unix_ro, value: none }
-    - { key: auth_unix_rw, value: none }
-  notify: Restart libvirtd
-
+# Debian's polkit rule (60-libvirt.rules) gives the libvirt group full
+# access to qemu:///system, so admins can use virsh without sudo.
 - name: Add admin users to the libvirt group
   ansible.builtin.user:
     name: "{{ item }}"
-    groups: ["{{ kvm_host_libvirt_socket_group }}"]
+    groups: [libvirt]
     append: true
   loop: "{{ kvm_host_libvirt_users }}"
-
-# Apply socket/daemon changes now: the pool and network tasks below talk to libvirtd.
-- name: Apply pending libvirt changes
-  ansible.builtin.meta: flush_handlers
-
-# virtlockd is left to libvirtd's own unit dependencies: it is optional on
-# Debian 13 (separate package) and only used with lock_manager = "lockd".
-- name: Enable and start the libvirt sockets
-  ansible.builtin.systemd_service:
-    name: "{{ item }}"
-    enabled: true
-    state: started
-  loop:
-    - virtlogd.socket
-    - libvirtd.socket
-    - libvirtd-ro.socket
-    - libvirtd-admin.socket
 
 - name: Enable and start libvirtd
   ansible.builtin.systemd_service:

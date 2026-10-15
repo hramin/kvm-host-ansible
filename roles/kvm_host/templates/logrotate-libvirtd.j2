@@ -1,10 +1,10 @@
 # {{ ansible_managed }}
-# libvirt daemon logs (only written when a file log_output is configured;
-# by default libvirtd logs to the journal).
+# libvirt daemon log files (only written when a file log output is
+# configured; by default libvirtd logs to the journal).
 /var/log/libvirt/*.log {
-        {{ kvm_host_logrotate_frequency }}
-        rotate {{ kvm_host_logrotate_rotate }}
-        maxsize {{ kvm_host_logrotate_maxsize }}
+        weekly
+        rotate 8
+        maxsize 100M
         missingok
         notifempty
         compress
