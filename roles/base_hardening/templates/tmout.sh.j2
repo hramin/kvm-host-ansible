@@ -1,9 +1,0 @@
-# {{ ansible_managed }}
-### {{ base_hardening_shell_timeout }} seconds idle timeout for interactive shells ##
-# Sourced by every login shell (bash and dash). Guarded so that a nested login
-# shell does not fail with "TMOUT: readonly variable".
-if [ -z "${TMOUT:-}" ]; then
-    TMOUT={{ base_hardening_shell_timeout }}
-    readonly TMOUT
-    export TMOUT
-fi

@@ -101,7 +101,6 @@ base_hardening_packages:
   - fail2ban
   - python3-systemd   # fail2ban's journal backend
   - auditd
-  - cron
   - logrotate
   - ca-certificates
   - curl
@@ -136,57 +135,6 @@ base_hardening_packages_blocklist:
   - rpcbind
   - popularity-contest
   - prelink
-# apt upgrade mode for the opt-in upgrade task (--tags upgrade): safe | full | dist | yes.
-base_hardening_upgrade_mode: safe
-
-# ── Accounts / shell ─────────────────────────────────────────────────────────
-# login.defs PASS_MAX_DAYS for new passwords.
-base_hardening_password_max_days: 120
-# login.defs PASS_MIN_DAYS for new passwords.
-base_hardening_password_min_days: 7
-# login.defs UMASK (also the home directory mode basis).
-base_hardening_umask: "077"
-# Idle timeout in seconds for interactive login shells (TMOUT, read-only).
-base_hardening_shell_timeout: 600
-
-# ── Kernel modules (modprobe.d "install <mod> /bin/true") ────────────────────
-# Also block every module that is already "blacklist"ed in modprobe.d.
-base_hardening_block_blacklisted: false
-# Filesystems nobody needs on a hypervisor (vfat is kept when booted via EFI).
-base_hardening_fs_modules_blocklist:
-  - cramfs
-  - freevxfs
-  - hfs
-  - hfsplus
-  - jffs2
-  - squashfs
-  - udf
-  - vfat
-# Hardware/protocol modules a server does not use.
-base_hardening_misc_modules_blocklist:
-  - bluetooth
-  - bnep
-  - btusb
-  - can
-  - cpia2
-  - firewire-core
-  - floppy
-  - n_hdlc
-  - net-pf-31
-  - pcspkr
-  - soundcore
-  - thunderbolt
-  - usb-midi
-  - usb-storage
-  - uvcvideo
-  - v4l2_common
-# Rarely used network protocols with a history of kernel bugs.
-base_hardening_net_modules_blocklist:
-  - atm
-  - dccp
-  - sctp
-  - rds
-  - tipc
 
 # ── Kernel parameters ────────────────────────────────────────────────────────
 # Disable IPv6 on the host. Off by default: guests and libvirt networks may
@@ -195,18 +143,6 @@ base_hardening_disable_ipv6: false
 # kernel.sysrq bitmask. 176 = sync (16) + remount read-only (32) + reboot (128):
 # enough to recover a hung hypervisor from the console, no debug/kill functions.
 base_hardening_sysctl_kernel_sysrq: 176
-
-# ── Mounts ───────────────────────────────────────────────────────────────────
-# Mount /tmp as tmpfs with noexec,nodev,nosuid.
-base_hardening_tmp_mount_enabled: true
-# Size cap for the /tmp tmpfs (tmpfs memory competes with guest RAM).
-base_hardening_tmp_mount_size: 2G
-# /proc hidepid: off | noaccess | invisible | ptraceable. "invisible" hides
-# other users' processes (QEMU command lines name every VM and disk) from
-# non-root users; libvirt access does not depend on it (socket group, no polkit).
-base_hardening_proc_hidepid: invisible
-# Group exempt from hidepid (procfs gid=), e.g. for a monitoring agent. "" = none.
-base_hardening_proc_hidepid_group: ""
 
 # ── journald ─────────────────────────────────────────────────────────────────
 # Disk space the persistent journal may use.

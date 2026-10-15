@@ -26,14 +26,6 @@
     name: systemd-journald
     state: restarted
 
-# A mount unit's "reload" remounts it with the new options (no unmount).
-- name: Remount tmp
-  ansible.builtin.systemd_service:
-    name: tmp.mount
-    state: reloaded
-  environment:
-    TMPDIR: /var/tmp
-
 - name: Update grub
   ansible.builtin.command: update-grub
   changed_when: true

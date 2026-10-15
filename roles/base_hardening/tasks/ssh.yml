@@ -7,14 +7,6 @@
     enabled: true
     state: started
 
-- name: Deploy SSH login banner
-  ansible.builtin.copy:
-    src: ssh_banner
-    dest: /etc/issue
-    owner: root
-    group: root
-    mode: "0644"
-
 # validate: a config sshd would reject is never written, so a reload can
 # not take SSH down.
 - name: Deploy hardened sshd_config
