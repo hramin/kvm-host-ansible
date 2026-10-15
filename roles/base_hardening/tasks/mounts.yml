@@ -1,0 +1,40 @@
+---
+- name: Install the /tmp tmpfs mount unit
+  ansible.builtin.template:
+    src: tmp.mount.j2
+    dest: /etc/systemd/system/tmp.mount
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: base_hardening_tmp_unit
+  notify: Remount tmp
+  when: base_hardening_tmp_mount_enabled | bool
+
+# The unit must be known to systemd before it can be enabled/started; the
+# "Remount tmp" handler then applies new options to an already mounted /tmp
+# (Debian 13 mounts /tmp as tmpfs out of the box).
+- name: Reload systemd after changing tmp.mount
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when:
+    - base_hardening_tmp_mount_enabled | bool
+    - base_hardening_tmp_unit is changed
+
+- name: Mount /tmp as tmpfs
+  ansible.builtin.systemd_service:
+    name: tmp.mount
+    enabled: true
+    state: started
+  when: base_hardening_tmp_mount_enabled | bool
+
+# fstab entry + remount; systemd-remount-fs re-applies it at boot.
+- name: Mount /proc with hidepid
+  ansible.posix.mount:
+    path: /proc
+    src: proc
+    fstype: proc
+    opts: >-
+      defaults,hidepid={{ base_hardening_proc_hidepid }}{{
+      (',gid=' ~ base_hardening_proc_hidepid_group) if base_hardening_proc_hidepid_group | length > 0 else '' }}
+    state: mounted
