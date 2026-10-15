@@ -1,0 +1,44 @@
+---
+# Lab values. Replace every CHANGEME (README "Placeholders to fill in").
+
+# ── Connection ───────────────────────────────────────────────────────────────
+# Account for the first connection to the fresh VM (the installer user, or
+# "debian" on the genericcloud image). It needs sudo and your SSH key.
+# After the first run sshd only admits members of base_hardening_admin_group:
+# if this account is not one of the admin users below, connect as an admin
+# from then on (scripts/test-idempotency.sh: RUN2_USER=<admin>).
+ansible_user: CHANGEME_FIRST_CONNECTION_USER
+
+# ── Platform ─────────────────────────────────────────────────────────────────
+# Debian major version installed on the lab VM: "12" or "13".
+base_hardening_debian_version: "CHANGEME_12_OR_13"
+
+# ── Access ───────────────────────────────────────────────────────────────────
+# Only these networks can reach SSH. Must contain the address your Ansible
+# controller connects from (preflight checks this before touching the firewall).
+base_hardening_management_cidrs:
+  - CHANGEME_MGMT_CIDR   # e.g. x.x.x.0/24
+
+# Admin accounts: SSH (AllowGroups), sudo and the libvirt group.
+base_hardening_admin_users:
+  - name: CHANGEME_ADMIN_USER
+    ssh_keys:
+      - "CHANGEME_SSH_ED25519_PUBLIC_KEY"   # "ssh-ed25519 AAAA... comment"
+
+# ── Lab specifics ────────────────────────────────────────────────────────────
+# Keep false when nested virtualization is enabled for the lab VM (the point of
+# the lab run). Set true only if it cannot be enabled: the play then continues
+# without vmx/svm and /dev/kvm and prints a warning.
+kvm_host_allow_software_emulation: false
+
+# Single-NIC lab VM: the bridge stays off, so give lab guests libvirt's NAT
+# network. This also exercises the nftables/libvirt coexistence on rerun.
+kvm_host_libvirt_default_network_enabled: true
+
+# Directory pool path; on the lab VM this is a plain directory on the root disk.
+kvm_host_storage_pool_path: /var/lib/libvirt/nvme
+
+# NTP: Debian's pool by default. Point at internal servers if the lab cannot
+# reach the internet, e.g.:
+# base_hardening_chrony_pools: []
+# base_hardening_chrony_servers: [ntp1.example.internal]
