@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# QEMU guest logs. virtlogd rotates these itself (max_size {{ kvm_host_virtlogd_max_size }} bytes,
+# {{ kvm_host_virtlogd_max_backups }} backups). The size threshold here is one byte above
+# virtlogd's, so logrotate stays a no-op while virtlogd is in charge and only
+# takes over if virtlogd is switched off (stdio_handler = "file" in qemu.conf).
+/var/log/libvirt/qemu/*.log {
+        size {{ kvm_host_virtlogd_max_size | int + 1 }}
+        rotate {{ kvm_host_logrotate_rotate }}
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+}

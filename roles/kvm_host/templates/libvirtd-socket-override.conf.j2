@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# With socket activation the socket permissions come from systemd, not from
+# libvirtd.conf. Only root and members of {{ kvm_host_libvirt_socket_group }} may connect;
+# libvirtd.conf sets auth_unix_ro/rw = "none", so no polkit check follows.
+[Socket]
+SocketGroup={{ kvm_host_libvirt_socket_group }}
+SocketMode=0770

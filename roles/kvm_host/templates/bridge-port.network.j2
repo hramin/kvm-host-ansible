@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# Uplink {{ item }} carries guest traffic for {{ kvm_host_bridge_name }}.
+[Match]
+Name={{ item }}
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+Bridge={{ kvm_host_bridge_name }}

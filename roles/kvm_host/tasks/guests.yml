@@ -1,0 +1,18 @@
+---
+# libvirt-guests reads this file when the host shuts down / boots. There is no
+# restart handler on purpose: stopping libvirt-guests.service shuts down every
+# running guest.
+- name: Configure libvirt-guests shutdown/boot behaviour
+  ansible.builtin.template:
+    src: libvirt-guests.j2
+    dest: /etc/default/libvirt-guests
+    owner: root
+    group: root
+    mode: "0644"
+
+# Must be active (oneshot, RemainAfterExit) so its ExecStop runs at shutdown.
+- name: Enable and start libvirt-guests
+  ansible.builtin.systemd_service:
+    name: libvirt-guests
+    enabled: true
+    state: started
