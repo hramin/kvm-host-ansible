@@ -2,6 +2,8 @@
 # Order matters:
 #   - admin users, keys and sudo exist before sshd is restricted to them;
 #   - sshd and the firewall come after the controller-address check in preflight.
+# Tag "bootstrap" (plus the always-run preflight) is the first-contact run:
+#   ansible-playbook site.yml --tags bootstrap
 - name: Preflight checks
   ansible.builtin.import_tasks: preflight.yml
   tags: [always]
@@ -12,11 +14,11 @@
 
 - name: Admin users, SSH keys and sudo
   ansible.builtin.import_tasks: users.yml
-  tags: [users, ssh]
+  tags: [bootstrap, users]
 
 - name: SSH daemon
   ansible.builtin.import_tasks: ssh.yml
-  tags: [ssh]
+  tags: [bootstrap, ssh]
 
 - name: Host firewall (nftables)
   ansible.builtin.import_tasks: firewall.yml
