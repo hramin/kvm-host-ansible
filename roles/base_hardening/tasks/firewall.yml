@@ -1,0 +1,64 @@
+---
+# Rendered and checked with "nft -c" (parse + kernel validation, nothing
+# applied) before it replaces the old file — also in container test mode.
+- name: Render the host firewall ruleset
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: "0750"
+    validate: /usr/sbin/nft -c -f %s
+  notify: Reload nftables
+
+- name: Create the nftables.service drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/nftables.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Stop nftables.service from flushing the whole ruleset
+  ansible.builtin.template:
+    src: nftables-service-override.conf.j2
+    dest: /etc/systemd/system/nftables.service.d/10-host-firewall.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: base_hardening_nftables_override
+
+# Before the unit is started for the first time, so systemd knows the new ExecStop.
+- name: Reload systemd after changing the nftables drop-in
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: base_hardening_nftables_override is changed
+
+- name: Enable nftables at boot
+  ansible.builtin.systemd_service:
+    name: nftables
+    enabled: true
+
+# Container test mode: the ruleset is rendered and validated, not loaded.
+- name: Start nftables (loads the ruleset)
+  ansible.builtin.systemd_service:
+    name: nftables
+    state: started
+  when: base_hardening_test_mode != 'container'
+
+# Self-heal without false "changed": only reload when the table has gone
+# missing (e.g. someone ran "nft flush ruleset" by hand).
+- name: Check that the host firewall table is loaded
+  ansible.builtin.command: /usr/sbin/nft list table inet {{ base_hardening_firewall_table }}
+  register: base_hardening_nft_table
+  changed_when: false
+  failed_when: false
+  when: base_hardening_test_mode != 'container'
+
+- name: Reload the ruleset when the host firewall table is missing
+  ansible.builtin.systemd_service:
+    name: nftables
+    state: reloaded
+  when:
+    - base_hardening_test_mode != 'container'
+    - base_hardening_nft_table.rc != 0

@@ -1,0 +1,74 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+#
+# Host firewall for a KVM/libvirt hypervisor.
+#
+# There is deliberately NO "flush ruleset" here. libvirt (ip/ip6
+# libvirt_network tables, or iptables-nft tables on Debian 12) and fail2ban
+# (inet f2b-table) keep their own tables in the same ruleset, and loading this
+# file must never remove them. Only the table below is replaced — atomically,
+# because nft applies the whole file as one transaction: the first line makes
+# sure the table exists, the second deletes it, the block recreates it.
+#
+# Only inbound traffic to the host is filtered (input hook). There is no
+# forward chain: bridged guest traffic never reaches the input hook (and with
+# bridge-nf-call-* = 0 not the IP hooks at all), and routed/NAT guest traffic
+# is handled by libvirt's own forward rules.
+
+table inet {{ base_hardening_firewall_table }}
+delete table inet {{ base_hardening_firewall_table }}
+
+{% set mgmt_v4 = base_hardening_management_cidrs | reject('search', ':') | list %}
+{% set mgmt_v6 = base_hardening_management_cidrs | select('search', ':') | list %}
+table inet {{ base_hardening_firewall_table }} {
+    chain input {
+        type filter hook input priority filter; policy drop;
+
+        ct state established,related accept
+        ct state invalid drop
+        iif "lo" accept
+
+        # ICMP needed for path MTU discovery, error reporting and IPv6 neighbour discovery
+        meta l4proto icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+        meta l4proto ipv6-icmp icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept
+{% if base_hardening_firewall_allow_icmp_echo | bool %}
+        meta l4proto icmp icmp type echo-request limit rate 10/second accept
+        meta l4proto ipv6-icmp icmpv6 type echo-request limit rate 10/second accept
+{% endif %}
+
+        # SSH only from the management networks
+{% if mgmt_v4 | length > 0 %}
+        ip saddr { {{ mgmt_v4 | join(', ') }} } tcp dport {{ base_hardening_sshd_port }} accept
+{% endif %}
+{% if mgmt_v6 | length > 0 %}
+        ip6 saddr { {{ mgmt_v6 | join(', ') }} } tcp dport {{ base_hardening_sshd_port }} accept
+{% endif %}
+{% if base_hardening_firewall_guest_service_interfaces | length > 0 %}
+
+        # DHCP and DNS from guests on libvirt NAT/isolated bridges (dnsmasq on the host)
+{% for iface in base_hardening_firewall_guest_service_interfaces %}
+        iifname "{{ iface }}" meta l4proto udp udp dport { 53, 67 } accept
+        iifname "{{ iface }}" meta l4proto tcp tcp dport 53 accept
+{% endfor %}
+{% endif %}
+{% if base_hardening_firewall_allowed_ports | length > 0 %}
+
+        # Extra allowed ports (base_hardening_firewall_allowed_ports)
+{% for rule in base_hardening_firewall_allowed_ports %}
+{%   set sources = rule.sources | default(base_hardening_management_cidrs) %}
+{%   set src_v4 = sources | reject('search', ':') | list %}
+{%   set src_v6 = sources | select('search', ':') | list %}
+{%   if src_v4 | length > 0 %}
+        ip saddr { {{ src_v4 | join(', ') }} } {{ rule.proto | default('tcp') }} dport {{ rule.port }} accept
+{%   endif %}
+{%   if src_v6 | length > 0 %}
+        ip6 saddr { {{ src_v6 | join(', ') }} } {{ rule.proto | default('tcp') }} dport {{ rule.port }} accept
+{%   endif %}
+{% endfor %}
+{% endif %}
+{% if base_hardening_firewall_log_dropped | bool %}
+
+        limit rate 5/minute burst 10 packets log prefix "{{ base_hardening_firewall_table }} drop: " level info
+{% endif %}
+    }
+}
