@@ -1,7 +1,0 @@
-# {{ ansible_managed }}
-[NetDev]
-Name={{ kvm_host_bridge_name }}
-Kind=bridge
-
-[Bridge]
-STP={{ kvm_host_bridge_stp | bool | ternary('yes', 'no') }}

@@ -16,10 +16,6 @@
     systemctl start libvirtd.service
   changed_when: true
 
-- name: Reload systemd-networkd
-  ansible.builtin.command: networkctl reload
-  changed_when: true
-
 # SIGUSR1: virtlogd re-executes with the new config and keeps open log files.
 - name: Reload virtlogd
   ansible.builtin.systemd_service:

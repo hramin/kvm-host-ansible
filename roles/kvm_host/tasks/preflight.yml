@@ -20,11 +20,9 @@
   ansible.builtin.assert:
     that:
       - kvm_host_kvm_vendor_module in ['auto', 'kvm_intel', 'kvm_amd', 'none']
-      - kvm_host_bridge_ip_mode in ['none', 'dhcp', 'static']
       - kvm_host_guests_on_boot in ['start', 'ignore']
       - kvm_host_guests_on_shutdown in ['shutdown', 'suspend']
-      - kvm_host_bridge_ip_mode != 'static' or kvm_host_bridge_address | length > 0
-    fail_msg: "Check kvm_host_kvm_vendor_module, kvm_host_bridge_ip_mode/_address and kvm_host_guests_* values."
+    fail_msg: "Check kvm_host_kvm_vendor_module and kvm_host_guests_* values."
     quiet: true
 
 # rc 1 = no match (no hardware virtualization), anything else is an error.

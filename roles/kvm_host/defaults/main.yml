@@ -98,30 +98,6 @@ kvm_host_storage_pool_require_mountpoint: false
 # false: stopped and not autostarted (kept defined, so "virsh net-start default"
 # still works). true: defined, started and autostarted — useful on single-NIC labs.
 kvm_host_libvirt_default_network_enabled: false
-# Linux bridge for bridged guests (systemd-networkd). Off by default: on a
-# single-NIC host enslaving the NIC moves the host's IP and can cut SSH.
-kvm_host_bridge_enabled: false
-# Bridge interface name.
-kvm_host_bridge_name: br0
-# Physical uplinks enslaved to the bridge. [] = bridge without uplink.
-kvm_host_bridge_interfaces: []
-# Host address on the bridge: none (L2 only, the host is not reachable via the
-# bridge), dhcp, or static (then set kvm_host_bridge_address/gateway/dns).
-kvm_host_bridge_ip_mode: none
-# Static address in CIDR form, e.g. 10.0.20.5/24 (ip_mode static only).
-kvm_host_bridge_address: ""
-# Default gateway on the bridge (ip_mode static only, optional).
-kvm_host_bridge_gateway: ""
-# DNS servers for the bridge (ip_mode static only, optional).
-kvm_host_bridge_dns: []
-# Spanning tree on the bridge.
-kvm_host_bridge_stp: false
-# Allow the interface carrying the default route (usually the management NIC)
-# in kvm_host_bridge_interfaces. Only with console access to the host.
-kvm_host_bridge_allow_default_route_interface: false
-# libvirt network (forward mode=bridge) pointing at the bridge, for
-# "virt-install --network network=<name>".
-kvm_host_bridge_libvirt_network: host-bridge
 
 # ── libvirt-guests (what happens to running guests on host shutdown/boot) ────
 # On boot: "start" restarts guests that were running at shutdown; "ignore" leaves them off.
