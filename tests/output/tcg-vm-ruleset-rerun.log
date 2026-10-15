@@ -1,0 +1,61 @@
+# Live nftables ruleset before and after one more site.yml run (as kvmadmin)
+$ nft list ruleset | sha256sum   # before
+# Warning: table ip filter is managed by iptables-nft, do not touch!
+# Warning: table ip nat is managed by iptables-nft, do not touch!
+# Warning: table ip mangle is managed by iptables-nft, do not touch!
+8363bb1f74d8b464bcb59268c47eb7475b7fd35b0156723daf4cebc8272f3ddc  -
+# Warning: table ip filter is managed by iptables-nft, do not touch!
+# Warning: table ip nat is managed by iptables-nft, do not touch!
+# Warning: table ip mangle is managed by iptables-nft, do not touch!
+$ ansible-playbook site.yml   # third run
+PLAY RECAP *********************************************************************
+lab-tcg                    : ok=108  changed=0    unreachable=0    failed=0    skipped=22   rescued=0    ignored=0   
+$ nft list ruleset | sha256sum   # after
+# Warning: table ip filter is managed by iptables-nft, do not touch!
+# Warning: table ip nat is managed by iptables-nft, do not touch!
+# Warning: table ip mangle is managed by iptables-nft, do not touch!
+584dfadf36bde8438eb42ad44bd92138a977143d7cd21af3b21177a17054a33d  -
+# Warning: table ip filter is managed by iptables-nft, do not touch!
+# Warning: table ip nat is managed by iptables-nft, do not touch!
+# Warning: table ip mangle is managed by iptables-nft, do not touch!
+$ diff before after
+11c11
+< 		counter packets 4055 bytes 38710699 jump LIBVIRT_INP
+---
+> 		counter packets 7717 bytes 75200003 jump LIBVIRT_INP
+23c23
+< 		counter packets 3367 bytes 519781 jump LIBVIRT_OUT
+---
+> 		counter packets 6410 bytes 972564 jump LIBVIRT_OUT
+58c58
+< 		counter packets 6 bytes 349 jump LIBVIRT_PRT
+---
+> 		counter packets 10 bytes 607 jump LIBVIRT_PRT
+68c68
+< 		counter packets 3367 bytes 519781 jump LIBVIRT_PRT
+---
+> 		counter packets 6410 bytes 972564 jump LIBVIRT_PRT
+77c77
+< 		counter packets 2 bytes 192 jump LIBVIRT_INP
+---
+> 		counter packets 6 bytes 576 jump LIBVIRT_INP
+85c85
+< 		counter packets 4 bytes 384 jump LIBVIRT_OUT
+---
+> 		counter packets 12 bytes 1152 jump LIBVIRT_OUT
+119c119
+< 		counter packets 4 bytes 384 jump LIBVIRT_PRT
+---
+> 		counter packets 12 bytes 1152 jump LIBVIRT_PRT
+
+# Only counter values differ. Same comparison with 'counter packets N bytes M' stripped:
+$ diff <(strip-counters before) <(strip-counters after)
+(identical: 137 lines, 7 tables)
+$ grep '^table' after
+table ip filter {
+table ip nat {
+table ip mangle {
+table ip6 filter {
+table ip6 nat {
+table ip6 mangle {
+table inet host_firewall {

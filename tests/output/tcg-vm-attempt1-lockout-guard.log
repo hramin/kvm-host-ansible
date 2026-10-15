@@ -1,0 +1,46 @@
+==> run 1: ansible-playbook -i /tmp/claude-0/-home-user-kvm-host-ansible/b7329e9b-05ed-5313-81d7-eb70d144f718/scratchpad/vm/inventory/hosts.yml site.yml -e kvm_host_test_mode=off 
+
+PLAY [Prepare Debian KVM/libvirt virtualization hosts] *************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert the test mode value is known] ********************
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert inventory placeholders were replaced] ************
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert the target runs the chosen Debian release] *******
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert management networks and admin users are defined] ***
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert every admin user has a name and at least one SSH key] ***
+ok: [lab-tcg] => (item=kvmadmin)
+
+TASK [base_hardening : Check that this SSH connection comes from a management CIDR] ***
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert the controller is inside the management networks] ***
+[ERROR]: Task failed: Action failed: This controller connects from 172.17.0.1, which is not in base_hardening_management_cidrs ['10.0.2.0/24']. The firewall would drop the next SSH connection. Fix the CIDR list (or, if you reach the host through a jump host, set base_hardening_check_controller_in_management_cidrs: false).
+Origin: /home/user/kvm-host-ansible/roles/base_hardening/tasks/preflight.yml:91:3
+
+89     - ansible_connection | default('ssh') in base_hardening_ssh_connection_plugins
+90
+91 - name: Assert the controller is inside the management networks
+     ^ column 3
+
+fatal: [lab-tcg]: FAILED! => 
+    assertion: base_hardening_cidr_check.rc == 0
+    changed: false
+    evaluated_to: false
+    msg: 'This controller connects from 172.17.0.1, which is not in base_hardening_management_cidrs
+        [''10.0.2.0/24'']. The firewall would drop the next SSH connection. Fix the CIDR
+        list (or, if you reach the host through a jump host, set base_hardening_check_controller_in_management_cidrs:
+        false).'
+
+PLAY RECAP *********************************************************************
+lab-tcg                    : ok=7    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+

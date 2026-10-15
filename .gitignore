@@ -5,3 +5,4 @@
 tests/output/*.tmp
 collections/
 .ansible/
+tests/tcg-vm/inventory/group_vars/all.yml

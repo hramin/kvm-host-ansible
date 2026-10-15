@@ -1,0 +1,114 @@
+# State checks on the QEMU/TCG Debian 13 VM after run 2 (commands run from the controller)
+
+$ ssh debian@vm true   # first-connection user, not in the admin group
+exit=255
+
+$ ssh root@vm true
+exit=255
+
+$ ssh -o PubkeyAuthentication=no kvmadmin@vm true   # password login
+exit=255
+
+$ ssh kvmadmin@vm (key) ...
+
+$ id
+uid=1001(kvmadmin) gid=1002(kvmadmin) groups=1002(kvmadmin),107(libvirt),1001(admins)
+
+$ sudo sshd -T | grep -E '^(permitrootlogin|allowgroups|passwordauthentication|kexalgorithms) '
+permitrootlogin no
+passwordauthentication no
+kexalgorithms mlkem768x25519-sha256,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
+allowgroups admins
+
+$ sudo nft list tables
+table inet host_firewall
+table ip filter
+table ip nat
+table ip mangle
+table ip6 filter
+table ip6 nat
+table ip6 mangle
+
+$ virsh -c qemu:///system net-list --all
+ Name      State    Autostart   Persistent
+--------------------------------------------
+ default   active   yes         yes
+
+
+$ virsh -c qemu:///system pool-list --all --details
+ Name   State     Autostart   Persistent   Capacity    Allocation   Available
+-------------------------------------------------------------------------------
+ nvme   running   yes         yes          15.58 GiB   929.47 MiB   14.67 GiB
+
+
+$ sudo sh -c 'nft list ruleset | sha256sum'
+5097c9ee90c7588396454bb9075e2a3d2042c26bc0bc0130ef6342c0e19b91d8  -
+
+$ sudo systemctl reload nftables && sudo nft list tables
+table ip filter
+table ip nat
+table ip mangle
+table ip6 filter
+table ip6 nat
+table ip6 mangle
+table inet host_firewall
+
+$ sudo systemctl restart nftables && sudo nft list tables   # stop must not flush libvirt's tables
+table ip filter
+table ip nat
+table ip mangle
+table ip6 filter
+table ip6 nat
+table ip6 mangle
+table inet host_firewall
+
+$ sudo sh -c 'nft list ruleset | sha256sum'
+9cca7ffc90494a81fb7796ca1bca78760dfd5c4f6a820ee15dcc7cbfe0a86073  -
+
+$ sudo auditctl -s | grep -E '^(enabled|backlog_limit)'; sudo auditctl -l | wc -l
+enabled 2
+backlog_limit 8192
+230
+
+$ sudo grep -o 'audit=1 audit_backlog_limit=8192' /boot/grub/grub.cfg | sort -u
+audit=1 audit_backlog_limit=8192
+
+$ /usr/sbin/sysctl kernel.sysrq kernel.kptr_restrict vm.swappiness vm.dirty_ratio fs.aio-max-nr net.ipv4.conf.all.rp_filter
+kernel.sysrq = 176
+kernel.kptr_restrict = 2
+vm.swappiness = 10
+vm.dirty_ratio = 10
+fs.aio-max-nr = 1048576
+net.ipv4.conf.all.rp_filter = 1
+
+$ lsmod | grep -E '^(kvm|vhost_net|tun|bridge) ' | awk '{print $1}'
+bridge
+vhost_net
+tun
+kvm
+
+$ findmnt -no OPTIONS /tmp; findmnt -no OPTIONS /proc
+rw,nosuid,nodev,noexec,size=2097152k,nr_inodes=1048576,inode64
+rw,relatime,hidepid=invisible
+
+$ ps -e --no-headers | wc -l; sudo ps -e --no-headers | wc -l   # hidepid: admin vs root
+3
+146
+
+$ systemctl is-active libvirtd libvirt-guests chrony fail2ban nftables auditd ssh
+active
+active
+active
+active
+active
+active
+active
+
+$ systemctl --failed --no-legend | wc -l
+0
+
+$ ls -l /run/libvirt/libvirt-sock
+srwxrwx--- 1 root libvirt 0 Oct 15 14:24 /run/libvirt/libvirt-sock
+
+$ sudo journalctl --header | grep -m1 'File path'
+File path: /var/log/journal/00ddc49bf7d34dd9a9ea471664c21e0d/user-1000.journal

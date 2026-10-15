@@ -1,0 +1,542 @@
+==> run 1: ansible-playbook -i /tmp/claude-0/-home-user-kvm-host-ansible/b7329e9b-05ed-5313-81d7-eb70d144f718/scratchpad/vm/inventory/hosts.yml site.yml -e kvm_host_test_mode=off 
+
+PLAY [Prepare Debian KVM/libvirt virtualization hosts] *************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert the test mode value is known] ********************
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert inventory placeholders were replaced] ************
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert the target runs the chosen Debian release] *******
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert management networks and admin users are defined] ***
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert every admin user has a name and at least one SSH key] ***
+ok: [lab-tcg] => (item=kvmadmin)
+
+TASK [base_hardening : Check that this SSH connection comes from a management CIDR] ***
+ok: [lab-tcg]
+
+TASK [base_hardening : Assert the controller is inside the management networks] ***
+ok: [lab-tcg]
+
+TASK [base_hardening : Warn when the connecting account will lose SSH access] ***
+ok: [lab-tcg] => 
+    msg: 'NOTE: ''debian'' is not in base_hardening_admin_users. After this run sshd only
+        accepts members of ''admins'' (kvmadmin); connect as one of them next time (for
+        example -e ansible_user=<admin>).'
+
+TASK [base_hardening : Configure apt] ******************************************
+[WARNING]: Module remote_tmp /root/.ansible/tmp did not exist and was created with a mode of 0700, this may cause issues when running as another user. To avoid this, create the remote_tmp dir with the correct permissions manually
+changed: [lab-tcg] => (item=Acquire::AllowDowngradeToInsecureRepositories "false";)
+changed: [lab-tcg] => (item=Acquire::AllowInsecureRepositories "false";)
+changed: [lab-tcg] => (item=Acquire::http::AllowRedirect "false";)
+changed: [lab-tcg] => (item=APT::Get::AllowUnauthenticated "false";)
+changed: [lab-tcg] => (item=APT::Get::AutomaticRemove "true";)
+changed: [lab-tcg] => (item=APT::Install-Recommends "false";)
+changed: [lab-tcg] => (item=APT::Install-Suggests "false";)
+changed: [lab-tcg] => (item=APT::Periodic::AutocleanInterval "7";)
+changed: [lab-tcg] => (item=APT::Sandbox::Seccomp "1";)
+changed: [lab-tcg] => (item=Unattended-Upgrade::Remove-Unused-Dependencies "true";)
+
+TASK [base_hardening : Apt update] *********************************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Install base packages] **********************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Purge blocklisted packages] *****************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Create the admin group] *********************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Create admin users] *************************************
+changed: [lab-tcg] => (item=kvmadmin)
+
+TASK [base_hardening : Install admin SSH keys] *********************************
+changed: [lab-tcg] => (item=kvmadmin)
+
+TASK [base_hardening : Grant sudo to the admin group] **************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Ensure the SSH daemon is enabled and running] ***********
+ok: [lab-tcg]
+
+TASK [base_hardening : Deploy SSH login banner] ********************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Deploy hardened sshd_config] ****************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Render the host firewall ruleset] ***********************
+changed: [lab-tcg]
+
+TASK [base_hardening : Create the nftables.service drop-in directory] **********
+changed: [lab-tcg]
+
+TASK [base_hardening : Stop nftables.service from flushing the whole ruleset] ***
+changed: [lab-tcg]
+
+TASK [base_hardening : Enable nftables at boot] ********************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Start nftables (loads the ruleset)] *********************
+changed: [lab-tcg]
+
+TASK [base_hardening : Check that the host firewall table is loaded] ***********
+ok: [lab-tcg]
+
+TASK [base_hardening : Reload the ruleset when the host firewall table is missing] ***
+skipping: [lab-tcg]
+
+TASK [base_hardening : Purge time daemons that conflict with chrony] ***********
+ok: [lab-tcg]
+
+TASK [base_hardening : Configure chrony] ***************************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Enable and start chrony] ********************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Set password expiration days] ***************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set password minimum days] ******************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set default umask for users] ****************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set an idle timeout for interactive shells] *************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set User/Group Owner and Permission on /etc/crontab] ****
+changed: [lab-tcg]
+
+TASK [base_hardening : Set User/Group Owner and Permission on /etc/cron.hourly] ***
+changed: [lab-tcg]
+
+TASK [base_hardening : Set User/Group Owner and Permission on /etc/cron.daily] ***
+changed: [lab-tcg]
+
+TASK [base_hardening : Set User/Group Owner and Permission on /etc/cron.weekly] ***
+changed: [lab-tcg]
+
+TASK [base_hardening : Set User/Group Owner and Permission on /etc/cron.monthly] ***
+changed: [lab-tcg]
+
+TASK [base_hardening : Set User/Group Owner and Permission on /etc/cron.d] *****
+changed: [lab-tcg]
+
+TASK [base_hardening : Restrict cron to Authorized Users (Remove cron.deny)] ***
+ok: [lab-tcg]
+
+TASK [base_hardening : Restrict at to Authorized Users (Remove at.deny)] *******
+ok: [lab-tcg]
+
+TASK [base_hardening : Restrict at to Authorized Users] ************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Restrict cron to Authorized Users] **********************
+changed: [lab-tcg]
+
+TASK [base_hardening : Efi fact] ***********************************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Disable file system kernel modules] *********************
+changed: [lab-tcg] => (item=cramfs)
+changed: [lab-tcg] => (item=freevxfs)
+changed: [lab-tcg] => (item=hfs)
+changed: [lab-tcg] => (item=hfsplus)
+changed: [lab-tcg] => (item=jffs2)
+changed: [lab-tcg] => (item=squashfs)
+changed: [lab-tcg] => (item=udf)
+changed: [lab-tcg] => (item=vfat)
+
+TASK [base_hardening : Dont disable vfat file system kernel modules if efi] ****
+skipping: [lab-tcg] => (item=cramfs) 
+skipping: [lab-tcg] => (item=freevxfs) 
+skipping: [lab-tcg] => (item=hfs) 
+skipping: [lab-tcg] => (item=hfsplus) 
+skipping: [lab-tcg] => (item=jffs2) 
+skipping: [lab-tcg] => (item=squashfs) 
+skipping: [lab-tcg] => (item=udf) 
+skipping: [lab-tcg]
+
+TASK [base_hardening : Disable misc kernel modules] ****************************
+changed: [lab-tcg] => (item=bluetooth)
+changed: [lab-tcg] => (item=bnep)
+changed: [lab-tcg] => (item=btusb)
+changed: [lab-tcg] => (item=can)
+changed: [lab-tcg] => (item=cpia2)
+changed: [lab-tcg] => (item=firewire-core)
+changed: [lab-tcg] => (item=floppy)
+changed: [lab-tcg] => (item=n_hdlc)
+changed: [lab-tcg] => (item=net-pf-31)
+changed: [lab-tcg] => (item=pcspkr)
+changed: [lab-tcg] => (item=soundcore)
+changed: [lab-tcg] => (item=thunderbolt)
+changed: [lab-tcg] => (item=usb-midi)
+changed: [lab-tcg] => (item=usb-storage)
+changed: [lab-tcg] => (item=uvcvideo)
+changed: [lab-tcg] => (item=v4l2_common)
+
+TASK [base_hardening : Index blacklisted kernel modules] ***********************
+skipping: [lab-tcg]
+
+TASK [base_hardening : Block blacklisted kernel modules] ***********************
+skipping: [lab-tcg]
+
+TASK [base_hardening : Disable kernel network modules] *************************
+changed: [lab-tcg] => (item=atm)
+changed: [lab-tcg] => (item=dccp)
+changed: [lab-tcg] => (item=sctp)
+changed: [lab-tcg] => (item=rds)
+changed: [lab-tcg] => (item=tipc)
+
+TASK [base_hardening : Check whether the kernel has IPv6] **********************
+ok: [lab-tcg]
+
+TASK [base_hardening : Apply kernel hardening sysctl settings] *****************
+changed: [lab-tcg] => (item=net.ipv6.conf.all.disable_ipv6 = 0)
+changed: [lab-tcg] => (item=net.ipv6.conf.default.disable_ipv6 = 0)
+changed: [lab-tcg] => (item=net.ipv6.conf.lo.disable_ipv6 = 0)
+changed: [lab-tcg] => (item=net.ipv4.conf.all.accept_redirects = 0)
+changed: [lab-tcg] => (item=net.ipv4.conf.default.accept_redirects = 0)
+changed: [lab-tcg] => (item=net.ipv4.conf.all.send_redirects = 0)
+changed: [lab-tcg] => (item=net.ipv4.conf.default.send_redirects = 0)
+changed: [lab-tcg] => (item=net.ipv6.conf.all.accept_redirects = 0)
+changed: [lab-tcg] => (item=net.ipv6.conf.default.accept_redirects = 0)
+changed: [lab-tcg] => (item=net.ipv4.conf.all.accept_source_route = 0)
+changed: [lab-tcg] => (item=net.ipv4.conf.default.accept_source_route = 0)
+changed: [lab-tcg] => (item=net.ipv4.conf.all.rp_filter = 1)
+changed: [lab-tcg] => (item=net.ipv4.conf.default.rp_filter = 1)
+changed: [lab-tcg] => (item=net.ipv4.conf.all.log_martians = 1)
+changed: [lab-tcg] => (item=net.ipv4.conf.default.log_martians = 1)
+changed: [lab-tcg] => (item=net.ipv4.icmp_echo_ignore_broadcasts = 1)
+changed: [lab-tcg] => (item=net.ipv4.icmp_ignore_bogus_error_responses = 1)
+changed: [lab-tcg] => (item=net.ipv4.tcp_syncookies = 1)
+changed: [lab-tcg] => (item=net.ipv4.tcp_rfc1337 = 1)
+changed: [lab-tcg] => (item=net.ipv4.tcp_synack_retries = 2)
+changed: [lab-tcg] => (item=net.ipv4.tcp_fin_timeout = 15)
+changed: [lab-tcg] => (item=net.ipv4.tcp_keepalive_time = 300)
+changed: [lab-tcg] => (item=net.ipv4.tcp_keepalive_probes = 5)
+changed: [lab-tcg] => (item=net.ipv4.tcp_keepalive_intvl = 15)
+changed: [lab-tcg] => (item=kernel.dmesg_restrict = 1)
+changed: [lab-tcg] => (item=kernel.kptr_restrict = 2)
+changed: [lab-tcg] => (item=kernel.printk = 3 4 1 7)
+changed: [lab-tcg] => (item=fs.suid_dumpable = 0)
+changed: [lab-tcg] => (item=kernel.core_uses_pid = 1)
+changed: [lab-tcg] => (item=kernel.sysrq = 176)
+changed: [lab-tcg] => (item=kernel.yama.ptrace_scope = 1)
+changed: [lab-tcg] => (item=kernel.randomize_va_space = 2)
+changed: [lab-tcg] => (item=kernel.unprivileged_bpf_disabled = 1)
+changed: [lab-tcg] => (item=net.core.bpf_jit_harden = 2)
+changed: [lab-tcg] => (item=dev.tty.ldisc_autoload = 0)
+changed: [lab-tcg] => (item=fs.protected_fifos = 2)
+changed: [lab-tcg] => (item=fs.protected_hardlinks = 1)
+changed: [lab-tcg] => (item=fs.protected_symlinks = 1)
+
+TASK [base_hardening : Install the /tmp tmpfs mount unit] **********************
+changed: [lab-tcg]
+
+TASK [base_hardening : Mount /tmp as tmpfs] ************************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Mount /proc with hidepid] *******************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Create the journald drop-in directory] ******************
+changed: [lab-tcg]
+
+TASK [base_hardening : Systemd journald.conf] **********************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Create the persistent journal directory] ****************
+ok: [lab-tcg]
+
+TASK [base_hardening : Check for update-grub] **********************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Set Debian audit grub cmdline] **************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Warn that the audit kernel arguments were not applied] ***
+skipping: [lab-tcg]
+
+TASK [base_hardening : Set audit action_mail_acct] *****************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Set audit admin_space_left_action] **********************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set audit disk_error_action] ****************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set audit disk_full_action] *****************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set audit max_log_file] *********************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Set audit max_log_file_action] **************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Set audit num_logs] *************************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Set audit space_left] ***********************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Set audit space_left_action] ****************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Audit.rules] ********************************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Enable and start auditd] ********************************
+ok: [lab-tcg]
+
+TASK [base_hardening : Configure fail2ban] *************************************
+changed: [lab-tcg]
+
+TASK [base_hardening : Enable and start fail2ban] ******************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Assert the test mode value is known] **************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Assert a supported Debian release] ****************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Assert valid option values] ***********************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Detect hardware virtualization (vmx/svm CPU flag)] ************
+ok: [lab-tcg]
+
+TASK [kvm_host : Choose the KVM vendor module] *********************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Assert hardware virtualization unless software emulation is allowed] ***
+ok: [lab-tcg]
+
+TASK [kvm_host : Warn that guests will run without KVM acceleration] ***********
+ok: [lab-tcg] => 
+    msg: 'WARNING: no vmx/svm CPU flag on lab-tcg. kvm_host_allow_software_emulation is
+        true, so the play continues, but guests will run under QEMU TCG software emulation
+        (10-50x slower). Lab use only - enable nested virtualization for a real test.'
+
+TASK [kvm_host : Install hypervisor packages] **********************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Load KVM-related modules at boot] *****************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Configure nested virtualization for the KVM vendor module] ****
+skipping: [lab-tcg]
+
+TASK [kvm_host : Load KVM-related modules now] *********************************
+changed: [lab-tcg] => (item=kvm)
+changed: [lab-tcg] => (item=vhost_net)
+ok: [lab-tcg] => (item=tun)
+changed: [lab-tcg] => (item=bridge)
+
+TASK [kvm_host : Read the current nested virtualization setting] ***************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Report that the nested setting applies after a reboot] ********
+skipping: [lab-tcg]
+
+TASK [kvm_host : Check /dev/kvm] ***********************************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Assert /dev/kvm exists unless software emulation is allowed] ***
+ok: [lab-tcg]
+
+TASK [kvm_host : Warn that /dev/kvm is missing] ********************************
+ok: [lab-tcg] => 
+    msg: 'WARNING: /dev/kvm does not exist on lab-tcg. kvm_host_allow_software_emulation
+        is true, so guests will run under QEMU TCG software emulation. Lab use only.'
+
+TASK [kvm_host : Write hypervisor sysctls] *************************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Check whether br_netfilter is loaded (net.bridge.* sysctls exist)] ***
+ok: [lab-tcg]
+
+TASK [kvm_host : Apply hypervisor sysctls] *************************************
+ok: [lab-tcg] => (item=net.bridge.bridge-nf-call-iptables = 0)
+ok: [lab-tcg] => (item=net.bridge.bridge-nf-call-ip6tables = 0)
+ok: [lab-tcg] => (item=net.bridge.bridge-nf-call-arptables = 0)
+changed: [lab-tcg] => (item=vm.swappiness = 10)
+changed: [lab-tcg] => (item=vm.dirty_background_ratio = 5)
+changed: [lab-tcg] => (item=vm.dirty_ratio = 10)
+ok: [lab-tcg] => (item=vm.zone_reclaim_mode = 0)
+changed: [lab-tcg] => (item=fs.aio-max-nr = 1048576)
+
+TASK [kvm_host : Create the udev rules directory] ******************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Re-apply bridge sysctls whenever br_netfilter loads] **********
+changed: [lab-tcg]
+
+TASK [kvm_host : Keep libvirtd running (no idle timeout)] **********************
+changed: [lab-tcg]
+
+TASK [kvm_host : Create libvirt socket drop-in directories] ********************
+changed: [lab-tcg] => (item=libvirtd.socket)
+changed: [lab-tcg] => (item=libvirtd-ro.socket)
+
+TASK [kvm_host : Restrict the libvirt sockets to the libvirt group] ************
+changed: [lab-tcg] => (item=libvirtd.socket)
+changed: [lab-tcg] => (item=libvirtd-ro.socket)
+
+TASK [kvm_host : Authenticate libvirt socket clients by socket permissions only] ***
+changed: [lab-tcg] => (item={'key': 'auth_unix_ro', 'value': 'none'})
+changed: [lab-tcg] => (item={'key': 'auth_unix_rw', 'value': 'none'})
+
+TASK [kvm_host : Add admin users to the libvirt group] *************************
+changed: [lab-tcg] => (item=kvmadmin)
+
+TASK [kvm_host : Apply pending libvirt changes] ********************************
+
+RUNNING HANDLER [base_hardening : Reload ssh] **********************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Reload nftables] *****************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Restart chrony] ******************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Restart journald] ****************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Remount tmp] *********************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Update grub] *********************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Load audit rules] ****************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Reload auditd] *******************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [base_hardening : Restart fail2ban] ****************************
+changed: [lab-tcg]
+
+RUNNING HANDLER [kvm_host : Reload systemd units for libvirt] ******************
+ok: [lab-tcg]
+
+RUNNING HANDLER [kvm_host : Restart libvirtd] **********************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Enable and start the libvirt sockets] *************************
+ok: [lab-tcg] => (item=virtlogd.socket)
+ok: [lab-tcg] => (item=libvirtd.socket)
+ok: [lab-tcg] => (item=libvirtd-ro.socket)
+ok: [lab-tcg] => (item=libvirtd-admin.socket)
+
+TASK [kvm_host : Enable and start libvirtd] ************************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Assert the storage pool path is a mount point] ****************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Create the storage pool directory] ****************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Define the storage pool] **************************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Read the storage pool definition] *****************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Assert the existing pool points at kvm_host_storage_pool_path] ***
+ok: [lab-tcg]
+
+TASK [kvm_host : Start the storage pool] ***************************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Autostart the storage pool] ***********************************
+changed: [lab-tcg]
+
+TASK [kvm_host : List libvirt networks] ****************************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Stop the default NAT network] *********************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Do not autostart the default NAT network] *********************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Read libvirt's default network definition] ********************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Define the default NAT network] *******************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Start the default NAT network] ********************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Autostart the default NAT network] ****************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Assert the management interface is not enslaved by accident] ***
+skipping: [lab-tcg]
+
+TASK [kvm_host : Define the bridge device] *************************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Configure the bridge] *****************************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Attach uplinks to the bridge] *********************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Enable and start systemd-networkd] ****************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Apply pending network changes] ********************************
+
+TASK [kvm_host : Define the libvirt bridge network] ****************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Start the libvirt bridge network] *****************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Autostart the libvirt bridge network] *************************
+skipping: [lab-tcg]
+
+TASK [kvm_host : Configure libvirt-guests shutdown/boot behaviour] *************
+changed: [lab-tcg]
+
+TASK [kvm_host : Enable and start libvirt-guests] ******************************
+ok: [lab-tcg]
+
+TASK [kvm_host : Configure virtlogd log rotation] ******************************
+changed: [lab-tcg] => (item={'key': 'max_size', 'value': 2097152})
+changed: [lab-tcg] => (item={'key': 'max_backups', 'value': 3})
+
+TASK [kvm_host : Rotate libvirt daemon logs] ***********************************
+changed: [lab-tcg]
+
+TASK [kvm_host : Rotate QEMU guest logs (fallback when virtlogd is disabled)] ***
+changed: [lab-tcg]
+
+RUNNING HANDLER [kvm_host : Reload virtlogd] ***********************************
+changed: [lab-tcg]
+
+PLAY RECAP *********************************************************************
+lab-tcg                    : ok=121  changed=75   unreachable=0    failed=0    skipped=21   rescued=0    ignored=0   
+
