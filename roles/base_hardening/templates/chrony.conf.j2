@@ -23,7 +23,7 @@ maxupdateskew 100.0
 # Keep the RTC in sync; step the clock only right after start (guest clocks
 # and TLS certificates do not like time jumps later on).
 rtcsync
-makestep {{ base_hardening_chrony_makestep }}
+makestep 1 3
 {% if ansible_facts['distribution_major_version'] | int >= 13 %}
 # Debian 13 (chrony 4.6) no longer ships right/UTC; read the leap second list.
 leapseclist /usr/share/zoneinfo/leap-seconds.list

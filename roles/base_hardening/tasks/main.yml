@@ -20,7 +20,6 @@
 
 - name: Host firewall (nftables)
   ansible.builtin.import_tasks: firewall.yml
-  when: base_hardening_firewall_enabled | bool
   tags: [firewall]
 
 - name: Time synchronisation (chrony)
@@ -28,7 +27,7 @@
   tags: [ntp]
 
 - name: Kernel hardening sysctls
-  ansible.builtin.import_tasks: tuning.yml
+  ansible.builtin.import_tasks: sysctl.yml
   tags: [sysctl]
 
 - name: Journald

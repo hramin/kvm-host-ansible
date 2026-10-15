@@ -1,4 +1,4 @@
 # {{ ansible_managed }}
 # Members of {{ base_hardening_admin_group }} administer this host.
 Defaults use_pty
-%{{ base_hardening_admin_group }} ALL=(ALL:ALL) {{ 'NOPASSWD: ' if base_hardening_admin_sudo_nopasswd | bool else '' }}ALL
+%{{ base_hardening_admin_group }} ALL=(ALL:ALL) NOPASSWD: ALL

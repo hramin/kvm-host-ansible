@@ -1,36 +1,32 @@
 ---
-# Runs before ssh.yml: the accounts, keys and sudo rights sshd will be
-# restricted to must exist before the restriction is applied.
+# Runs before ssh.yml: the accounts, keys and sudo rights that sshd will be
+# restricted to exist before the restriction is applied.
 - name: Create the admin group
   ansible.builtin.group:
     name: "{{ base_hardening_admin_group }}"
-    state: present
 
 - name: Create admin users
   ansible.builtin.user:
     name: "{{ item.name }}"
-    comment: "{{ item.comment | default(omit) }}"
-    shell: "{{ item.shell | default('/bin/bash') }}"
+    shell: /bin/bash
     groups: ["{{ base_hardening_admin_group }}"]
     append: true
-    create_home: true
-    password: "{{ item.password | default(omit) }}"
-    update_password: always
   loop: "{{ base_hardening_admin_users }}"
   loop_control:
     label: "{{ item.name }}"
 
+# exclusive: authorized_keys holds exactly the listed keys, so a rerun with
+# the same list changes nothing and a removed key really is removed.
 - name: Install admin SSH keys
   ansible.posix.authorized_key:
     user: "{{ item.name }}"
     key: "{{ item.ssh_keys | join('\n') }}"
-    exclusive: "{{ base_hardening_admin_keys_exclusive | bool }}"
-    manage_dir: true
-    state: present
+    exclusive: true
   loop: "{{ base_hardening_admin_users }}"
   loop_control:
     label: "{{ item.name }}"
 
+# Admins log in with keys only and have no password, hence NOPASSWD.
 - name: Grant sudo to the admin group
   ansible.builtin.template:
     src: sudoers-admins.j2

@@ -1,98 +1,39 @@
 ---
-# =============================================================================
-# base_hardening — defaults
-# Every variable the role reads is listed here with what it does. Values that
-# have no safe default (management CIDRs, admin users) are empty and asserted
-# in preflight. README "Variables" has the same list as a table.
-# =============================================================================
+# base_hardening — the values a site sets (in inventory group_vars).
+# Fixed choices (sshd options, journald limits, firewall details) live in the
+# templates with a comment saying why.
 
-# ── Test mode ────────────────────────────────────────────────────────────────
-# Follows kvm_host_test_mode; set that one, not this. "container" skips only
-# what a container cannot do (live non-namespaced sysctls, live nftables load,
-# auditd service/rule load, GRUB). See README "Container test mode".
-base_hardening_test_mode: "{{ kvm_host_test_mode | default('off') }}"
-
-# ── Preflight ────────────────────────────────────────────────────────────────
-# Debian major version the target must run. The play fails on any other release.
+# Debian major version every host must run ("12" or "13"); preflight fails otherwise.
 base_hardening_debian_version: "13"
-# Debian major versions this role supports.
-base_hardening_supported_debian_versions: ["12", "13"]
-# Fail before touching SSH/firewall when the controller's SSH source address
-# is outside base_hardening_management_cidrs (the next connection would be
-# dropped by the firewall). Only checked for SSH connections.
+
+# Networks allowed to reach SSH (IPv4/IPv6 CIDRs). Required. Preflight fails
+# when the controller's own SSH source address is outside all of them.
+base_hardening_management_cidrs: []
+# Set false only when connecting through a jump host/NAT that the CIDRs cover.
 base_hardening_check_controller_in_management_cidrs: true
 
-# ── Management access ────────────────────────────────────────────────────────
-# Networks (IPv4 and/or IPv6 CIDRs) allowed to reach SSH. Required.
-base_hardening_management_cidrs: []
-
-# ── Admin users ──────────────────────────────────────────────────────────────
-# Group whose members may log in over SSH (sshd AllowGroups) and use sudo.
-base_hardening_admin_group: admins
-# Admin accounts, created before sshd is reconfigured. Each item:
-#   name:     login name (required)
-#   ssh_keys: list of public keys (required, at least one)
-#   comment:  GECOS field (optional)
-#   shell:    login shell (optional, default /bin/bash)
-#   password: crypt(3) hash (optional; needed only when sudo asks for passwords)
+# Admin accounts: SSH login, passwordless sudo, libvirt access. Required.
+# Each item: {name: <login>, ssh_keys: [<public key>, ...]}. Keys that are not
+# listed are removed from these accounts' authorized_keys.
 base_hardening_admin_users: []
-# Remove authorized keys that are not listed in ssh_keys from admin accounts.
-base_hardening_admin_keys_exclusive: true
-# Passwordless sudo for the admin group. Key-only accounts have no password,
-# so they need this; set false only if every admin has a password hash.
-base_hardening_admin_sudo_nopasswd: true
+# Group used for sshd AllowGroups and the sudoers rule.
+base_hardening_admin_group: admins
 
-# ── SSH daemon ───────────────────────────────────────────────────────────────
-# Port sshd listens on (also used by the firewall).
+# sshd port; the firewall opens it for the management CIDRs only.
 base_hardening_sshd_port: 22
-# Addresses sshd binds to.
-base_hardening_sshd_listen_addresses: ["0.0.0.0"]
-# inet (IPv4 only), inet6 or any. Must cover base_hardening_sshd_listen_addresses.
-base_hardening_sshd_address_family: inet
-# Allow password logins (keys only by default).
-base_hardening_sshd_password_authentication: false
-# Allow SSH TCP port forwarding (-L/-R).
-base_hardening_sshd_allow_tcp_forwarding: false
-# Optional AllowUsers list, applied in addition to AllowGroups (both must match).
-base_hardening_sshd_allow_users: []
-# Authentication attempts per connection.
-base_hardening_sshd_max_auth_tries: 3
-# Sessions per connection (Ansible's ControlPersist reuses one connection).
-base_hardening_sshd_max_sessions: 2
-# Seconds between keepalive probes to idle clients.
-base_hardening_sshd_client_alive_interval: 300
-# Unanswered keepalive probes before the client is disconnected.
-base_hardening_sshd_client_alive_count_max: 2
 
-# ── Firewall (nftables) ──────────────────────────────────────────────────────
-# Manage /etc/nftables.conf and nftables.service.
-base_hardening_firewall_enabled: true
-# The one nftables table this role owns. Reloads replace only this table.
-base_hardening_firewall_table: host_firewall
-# Extra inbound ports. Each item: port (number or "from-to"), proto (tcp|udp),
-# sources (list of CIDRs; default base_hardening_management_cidrs).
-# Example: [{port: "5900-5999", proto: tcp}] for VNC consoles from management.
+# Extra inbound ports: [{port: 5900-5999, proto: tcp, sources: [<cidr>]}].
+# sources defaults to the management CIDRs.
 base_hardening_firewall_allowed_ports: []
-# Interfaces on which guests reach the host's dnsmasq (DHCP/DNS) — libvirt NAT
-# and isolated network bridges. Matching nothing is harmless.
-base_hardening_firewall_guest_service_interfaces: ["virbr*"]
-# Accept ICMP/ICMPv6 echo requests (rate limited).
-base_hardening_firewall_allow_icmp_echo: true
-# Log dropped inbound packets (rate limited) with prefix "host_firewall drop: ".
-base_hardening_firewall_log_dropped: true
 
-# ── Time (chrony) ────────────────────────────────────────────────────────────
-# NTP pools for chrony. Debian's own default; point to internal servers in production.
-base_hardening_chrony_pools: ["2.debian.pool.ntp.org"]
-# Individual NTP servers (used in addition to the pools).
+# NTP sources for chrony. Debian's pool by default; use internal servers in production.
+base_hardening_chrony_pools: [2.debian.pool.ntp.org]
 base_hardening_chrony_servers: []
-# chrony "makestep" threshold/limit: step the clock if off by more than 1 s in the first 3 updates.
-base_hardening_chrony_makestep: "1 3"
-# Time daemons that conflict with chrony; purged.
-base_hardening_ntp_conflicting_packages: [ntp, ntpsec, systemd-timesyncd, openntpd]
 
-# ── Packages ─────────────────────────────────────────────────────────────────
-# Base packages: services this role configures plus basic admin tools.
+# Disk space the persistent journal may use.
+base_hardening_journald_max_use: 1G
+
+# Base packages: the services this role configures plus a few admin tools.
 base_hardening_packages:
   - sudo
   - openssh-server
@@ -100,56 +41,25 @@ base_hardening_packages:
   - nftables
   - auditd
   - logrotate
+  - procps        # sysctl
+  - iproute2
   - ca-certificates
   - curl
   - less
   - vim-tiny
   - htop
-  - tmux
   - lsof
   - tcpdump
   - rsync
-  - jq
-  - bash-completion
-  - procps
-  - iproute2
-  - pciutils
-  - ethtool
-# Additional site-specific packages.
-base_hardening_packages_extra: []
-# Packages purged when present (legacy clear-text/network services, telemetry).
+
+# Purged when installed: clear-text remote access, legacy network services, telemetry.
 base_hardening_packages_blocklist:
   - telnet
   - inetutils-telnet
-  - telnetd
   - rsh-client
-  - rsh-server
   - talk
-  - talkd
   - nis
-  - tftp-hpa
   - xinetd
   - avahi-daemon
   - rpcbind
   - popularity-contest
-  - prelink
-
-# ── Kernel parameters ────────────────────────────────────────────────────────
-# Disable IPv6 on the host. Off by default: guests and libvirt networks may
-# need IPv6, and the inet firewall table filters IPv6 exactly like IPv4.
-base_hardening_disable_ipv6: false
-# kernel.sysrq bitmask. 176 = sync (16) + remount read-only (32) + reboot (128):
-# enough to recover a hung hypervisor from the console, no debug/kill functions.
-base_hardening_sysctl_kernel_sysrq: 176
-
-# ── journald ─────────────────────────────────────────────────────────────────
-# Disk space the persistent journal may use.
-base_hardening_journald_system_max_use: 1G
-# Disk space journald always leaves free.
-base_hardening_journald_system_keep_free: 2G
-# Size of one journal file before rotation.
-base_hardening_journald_system_max_file_size: 128M
-# Drop journal entries older than this.
-base_hardening_journald_max_retention: 3month
-# Also forward to a syslog daemon (Debian 12/13 install none by default).
-base_hardening_journald_forward_to_syslog: false

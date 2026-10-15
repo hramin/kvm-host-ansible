@@ -1,12 +1,13 @@
 # {{ ansible_managed }}
-# Drop-in for /etc/systemd/journald.conf (Debian 13 no longer ships that file in /etc).
+# Drop-in for journald.conf (Debian 13 no longer ships /etc/systemd/journald.conf).
 
 [Journal]
+# Keep the journal across reboots (/var/log/journal), size-limited.
 Storage=persistent
-# Debian 12/13 do not install rsyslog by default; only forward when one is present.
-ForwardToSyslog={{ base_hardening_journald_forward_to_syslog | bool | ternary('yes', 'no') }}
 Compress=yes
-SystemMaxUse={{ base_hardening_journald_system_max_use }}
-SystemKeepFree={{ base_hardening_journald_system_keep_free }}
-SystemMaxFileSize={{ base_hardening_journald_system_max_file_size }}
-MaxRetentionSec={{ base_hardening_journald_max_retention }}
+SystemMaxUse={{ base_hardening_journald_max_use }}
+SystemKeepFree=2G
+SystemMaxFileSize=128M
+MaxRetentionSec=3month
+# Debian 12/13 install no syslog daemon by default.
+ForwardToSyslog=no

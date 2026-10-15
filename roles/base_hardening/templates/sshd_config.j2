@@ -4,10 +4,8 @@
 
 # ── Network ────────────────────────────────────────────────────────────────────
 Port {{ base_hardening_sshd_port }}
-{% for address in base_hardening_sshd_listen_addresses %}
-ListenAddress {{ address }}
-{% endfor %}
-AddressFamily {{ base_hardening_sshd_address_family }}
+ListenAddress 0.0.0.0
+AddressFamily inet
 
 # ── Host Keys (prefer Ed25519, then ECDSA; drop RSA) ──────────────────────────
 HostKey /etc/ssh/ssh_host_ed25519_key
@@ -28,8 +26,8 @@ LogLevel VERBOSE
 LoginGraceTime 30
 PermitRootLogin no
 StrictModes yes
-MaxAuthTries {{ base_hardening_sshd_max_auth_tries }}
-MaxSessions {{ base_hardening_sshd_max_sessions }}
+MaxAuthTries 3
+MaxSessions 2
 
 PubkeyAuthentication yes
 AuthorizedKeysFile .ssh/authorized_keys
@@ -37,7 +35,7 @@ AuthorizedKeysFile .ssh/authorized_keys
 IgnoreRhosts yes
 HostbasedAuthentication no
 
-PasswordAuthentication {{ base_hardening_sshd_password_authentication | bool | ternary('yes', 'no') }}
+PasswordAuthentication no
 PermitEmptyPasswords no
 # ChallengeResponseAuthentication is a deprecated alias since OpenSSH 8.7.
 KbdInteractiveAuthentication no
@@ -51,7 +49,7 @@ UsePAM yes
 
 # ── Forwarding / tunnelling — all disabled ─────────────────────────────────────
 AllowAgentForwarding no
-AllowTcpForwarding {{ base_hardening_sshd_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
+AllowTcpForwarding no
 GatewayPorts no
 X11Forwarding no
 PermitTunnel no
@@ -60,8 +58,8 @@ PermitTunnel no
 PrintMotd no
 TCPKeepAlive no
 Compression no
-ClientAliveInterval {{ base_hardening_sshd_client_alive_interval }}
-ClientAliveCountMax {{ base_hardening_sshd_client_alive_count_max }}
+ClientAliveInterval 300
+ClientAliveCountMax 2
 MaxStartups 10:30:60
 
 # ── Environment ───────────────────────────────────────────────────────────────
@@ -72,9 +70,6 @@ PermitUserEnvironment no
 Subsystem sftp /usr/lib/openssh/sftp-server
 
 # ── Access control ─────────────────────────────────────────────────────────────
-{% if base_hardening_sshd_allow_users | length > 0 %}
-AllowUsers {{ base_hardening_sshd_allow_users | join(' ') }}
-{% endif %}
 AllowGroups {{ base_hardening_admin_group }}
 
 # ── Drop-ins ───────────────────────────────────────────────────────────────────

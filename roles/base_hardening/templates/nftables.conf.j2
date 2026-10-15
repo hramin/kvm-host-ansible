@@ -31,10 +31,8 @@ table inet {{ base_hardening_firewall_table }} {
         # (In an inet table "icmp type"/"icmpv6 type" already match the protocol.)
         icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
         icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept
-{% if base_hardening_firewall_allow_icmp_echo | bool %}
         icmp type echo-request limit rate 10/second accept
         icmpv6 type echo-request limit rate 10/second accept
-{% endif %}
 
         # SSH only from the management networks
 {% if mgmt_v4 | length > 0 %}
@@ -43,14 +41,10 @@ table inet {{ base_hardening_firewall_table }} {
 {% if mgmt_v6 | length > 0 %}
         ip6 saddr { {{ mgmt_v6 | join(', ') }} } tcp dport {{ base_hardening_sshd_port }} accept
 {% endif %}
-{% if base_hardening_firewall_guest_service_interfaces | length > 0 %}
 
         # DHCP and DNS from guests on libvirt NAT/isolated bridges (dnsmasq on the host)
-{% for iface in base_hardening_firewall_guest_service_interfaces %}
-        iifname "{{ iface }}" udp dport { 53, 67 } accept
-        iifname "{{ iface }}" tcp dport 53 accept
-{% endfor %}
-{% endif %}
+        iifname "virbr*" udp dport { 53, 67 } accept
+        iifname "virbr*" tcp dport 53 accept
 {% if base_hardening_firewall_allowed_ports | length > 0 %}
 
         # Extra allowed ports (base_hardening_firewall_allowed_ports)
@@ -66,9 +60,7 @@ table inet {{ base_hardening_firewall_table }} {
 {%   endif %}
 {% endfor %}
 {% endif %}
-{% if base_hardening_firewall_log_dropped | bool %}
 
         limit rate 5/minute burst 10 packets log prefix "{{ base_hardening_firewall_table }} drop: " level info
-{% endif %}
     }
 }

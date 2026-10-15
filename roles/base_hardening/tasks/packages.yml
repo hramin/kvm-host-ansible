@@ -8,7 +8,7 @@
 
 - name: Install base packages
   ansible.builtin.apt:
-    name: "{{ base_hardening_packages + base_hardening_packages_extra }}"
+    name: "{{ base_hardening_packages }}"
     state: present
     install_recommends: false
 
