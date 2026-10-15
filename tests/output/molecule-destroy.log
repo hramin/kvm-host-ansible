@@ -1,0 +1,47 @@
+INFO     [default > discovery] scenario test matrix: dependency, cleanup, destroy
+INFO     [default > prerun] Performing prerun with role_name_check=0...
+INFO     [default > dependency] Executing
+Starting galaxy collection install process
+Nothing to do. All requested collections are already installed. If you want to reinstall them, consider using `--force`.
+INFO     [default > dependency] Dependency completed successfully.
+Starting galaxy collection install process
+Nothing to do. All requested collections are already installed. If you want to reinstall them, consider using `--force`.
+INFO     [default > dependency] Dependency completed successfully.
+INFO     [default > dependency] Executed: Successful
+INFO     [default > cleanup] Executing
+WARNING  [default > cleanup] Executed: Missing playbook (Remove from destroy_sequence to suppress)
+INFO     [default > destroy] Executing
+INFO     Sanity checks: 'docker'
+
+PLAY [Destroy] *****************************************************************
+
+TASK [Set async_dir for HOME env] **********************************************
+ok: [localhost]
+
+TASK [Destroy molecule instance(s)] ********************************************
+changed: [localhost] => (item=kvm-host-debian12)
+changed: [localhost] => (item=kvm-host-debian13)
+
+TASK [Wait for instance(s) deletion to complete] *******************************
+FAILED - RETRYING: [localhost]: Wait for instance(s) deletion to complete (299 retries left).
+changed: [localhost] => (item=kvm-host-debian12)
+changed: [localhost] => (item=kvm-host-debian13)
+
+TASK [Delete docker networks(s)] ***********************************************
+skipping: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     [default > destroy] Executed: Successful
+INFO     [default > scenario] Pruning extra files from scenario ephemeral directory
+WARNING  Molecule executed 1 scenario (1 missing files)
+
+DETAILS                                                                        
+default > dependency: Executed: Successful
+default > cleanup: Executed: Missing playbook (Remove from destroy_sequence to suppress)
+default > destroy: Executed: Successful
+
+SCENARIO RECAP                                                                 
+default                   : actions=3  successful=1  disabled=0  skipped=0  missing=1  failed=0
+
