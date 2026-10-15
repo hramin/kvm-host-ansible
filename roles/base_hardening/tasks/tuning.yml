@@ -13,13 +13,22 @@
 # live one by one (sysctl_set) instead of re-reading the whole file with "sysctl -p".
 # In container test mode only network-namespaced keys are set live; the others
 # would change the container host's kernel, so for them only the file is written.
+# A kernel booted with ipv6.disable=1 has no net.ipv6.* keys at all; those are
+# then only written to the file (IPv6 is already off).
+- name: Check whether the kernel has IPv6
+  ansible.builtin.stat:
+    path: /proc/sys/net/ipv6
+  register: base_hardening_ipv6_proc
+
 - name: Apply kernel hardening sysctl settings
   ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value }}"
     state: present
     sysctl_file: /etc/sysctl.d/99-hardening.conf
-    sysctl_set: "{{ base_hardening_test_mode != 'container' or item.key is match(base_hardening_netns_sysctl_regex) }}"
+    sysctl_set: >-
+      {{ (base_hardening_test_mode != 'container' or item.key is match(base_hardening_netns_sysctl_regex))
+         and (base_hardening_ipv6_proc.stat.exists or not item.key.startswith('net.ipv6.')) }}
     reload: false
   loop:
     # ── IPv6 disable (base_hardening_disable_ipv6, default off on a hypervisor) ─

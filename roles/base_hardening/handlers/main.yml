@@ -31,6 +31,8 @@
   ansible.builtin.systemd_service:
     name: tmp.mount
     state: reloaded
+  environment:
+    TMPDIR: /var/tmp
 
 - name: Update grub
   ansible.builtin.command: update-grub

@@ -101,6 +101,16 @@
   loop_control:
     label: "{{ item.name }} = {{ item.value }}"
 
+# udev is not necessarily installed (e.g. Debian 12 without it); the rule is
+# then inert but already in place should udev arrive later.
+- name: Create the udev rules directory
+  ansible.builtin.file:
+    path: /etc/udev/rules.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Re-apply bridge sysctls whenever br_netfilter loads
   ansible.builtin.template:
     src: bridge-nf-udev.rules.j2

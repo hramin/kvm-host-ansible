@@ -64,12 +64,14 @@
       ansible.builtin.assert:
         that:
           - kvm_host_bridge_allow_default_route_interface | bool or
-            ansible_facts['default_ipv4']['interface'] | default('') not in kvm_host_bridge_interfaces
+            kvm_host_default_route_interface not in kvm_host_bridge_interfaces
         fail_msg: >-
-          {{ ansible_facts['default_ipv4']['interface'] }} carries the default route and is listed in
+          {{ kvm_host_default_route_interface }} carries the default route and is listed in
           kvm_host_bridge_interfaces. Use a dedicated NIC for the VM bridge, or set
           kvm_host_bridge_allow_default_route_interface: true with console access at hand.
         quiet: true
+      vars:
+        kvm_host_default_route_interface: "{{ (ansible_facts['default_ipv4'] | default({})).interface | default('') }}"
 
     # systemd-networkd only manages the interfaces matched below, so it
     # coexists with ifupdown/netplan managing the management NIC.

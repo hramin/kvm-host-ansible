@@ -58,6 +58,8 @@
 - name: Apply pending libvirt changes
   ansible.builtin.meta: flush_handlers
 
+# virtlockd is left to libvirtd's own unit dependencies: it is optional on
+# Debian 13 (separate package) and only used with lock_manager = "lockd".
 - name: Enable and start the libvirt sockets
   ansible.builtin.systemd_service:
     name: "{{ item }}"
@@ -65,7 +67,6 @@
     state: started
   loop:
     - virtlogd.socket
-    - virtlockd.socket
     - libvirtd.socket
     - libvirtd-ro.socket
     - libvirtd-admin.socket

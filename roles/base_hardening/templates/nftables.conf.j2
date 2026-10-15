@@ -28,12 +28,13 @@ table inet {{ base_hardening_firewall_table }} {
         ct state invalid drop
         iif "lo" accept
 
-        # ICMP needed for path MTU discovery, error reporting and IPv6 neighbour discovery
-        meta l4proto icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
-        meta l4proto ipv6-icmp icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept
+        # ICMP needed for path MTU discovery, error reporting and IPv6 neighbour discovery.
+        # (In an inet table "icmp type"/"icmpv6 type" already match the protocol.)
+        icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+        icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept
 {% if base_hardening_firewall_allow_icmp_echo | bool %}
-        meta l4proto icmp icmp type echo-request limit rate 10/second accept
-        meta l4proto ipv6-icmp icmpv6 type echo-request limit rate 10/second accept
+        icmp type echo-request limit rate 10/second accept
+        icmpv6 type echo-request limit rate 10/second accept
 {% endif %}
 
         # SSH only from the management networks
@@ -47,8 +48,8 @@ table inet {{ base_hardening_firewall_table }} {
 
         # DHCP and DNS from guests on libvirt NAT/isolated bridges (dnsmasq on the host)
 {% for iface in base_hardening_firewall_guest_service_interfaces %}
-        iifname "{{ iface }}" meta l4proto udp udp dport { 53, 67 } accept
-        iifname "{{ iface }}" meta l4proto tcp tcp dport 53 accept
+        iifname "{{ iface }}" udp dport { 53, 67 } accept
+        iifname "{{ iface }}" tcp dport 53 accept
 {% endfor %}
 {% endif %}
 {% if base_hardening_firewall_allowed_ports | length > 0 %}
