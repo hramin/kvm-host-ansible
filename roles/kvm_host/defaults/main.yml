@@ -1,32 +1,35 @@
 ---
-# =============================================================================
-# kvm_host — defaults
-# Every variable the role reads is listed here with what it does.
-# README "Variables" has the same list as a table.
-# =============================================================================
+# kvm_host — the values a site sets (in inventory group_vars).
 
-# ── Test mode ────────────────────────────────────────────────────────────────
-# "off" for real hosts. "container" (molecule Docker scenario only) skips what a
-# container cannot do: kernel module loading, live non-namespaced sysctls, the
-# /dev/kvm check — plus, in base_hardening, the live nftables load, auditd and
-# GRUB. Everything else runs. See README "Container test mode".
-kvm_host_test_mode: "off"
-
-# ── Preflight ────────────────────────────────────────────────────────────────
-# Debian major versions this role supports.
-kvm_host_supported_debian_versions: ["12", "13"]
-# Allow a host without hardware virtualization (no vmx/svm, no /dev/kvm), e.g. a
-# lab VM without nested virtualization. Guests then run under QEMU TCG software
-# emulation (10-50x slower); the play prints a warning. Never for production.
+# Continue without vmx/svm and /dev/kvm: guests then run under QEMU software
+# emulation (10-50x slower) and the play prints a warning. Lab VMs only.
 kvm_host_allow_software_emulation: false
-# KVM vendor module: auto (vmx -> kvm_intel, svm -> kvm_amd), kvm_intel, kvm_amd, none.
-kvm_host_kvm_vendor_module: auto
-# Let guests run their own hypervisor (kvm_intel/kvm_amd "nested" parameter).
-# Takes effect when the module is (re)loaded, i.e. after a reboot.
+# Nested virtualization (kvm_intel/kvm_amd "nested"); applies when the module next loads.
 kvm_host_nested_virtualization: true
 
-# ── Packages ─────────────────────────────────────────────────────────────────
-# Hypervisor packages (Debian names; installed without recommends).
+# Directory storage pool for guest images; mount the NVMe filesystem at the path.
+kvm_host_storage_pool_name: nvme
+kvm_host_storage_pool_path: /var/lib/libvirt/nvme
+# Fail unless the path is its own mount point, so images never fill the root filesystem.
+kvm_host_storage_pool_require_mountpoint: false
+
+# libvirt's "default" NAT network (virbr0, 192.168.122.0/24, dnsmasq on the host).
+# false: stopped and not autostarted, but still defined. true: started and
+# autostarted (single-NIC hosts with no bridge).
+kvm_host_libvirt_default_network_enabled: false
+
+# Running guests on host shutdown: shutdown (clean ACPI shutdown) or suspend
+# (RAM saved to /var/lib/libvirt/qemu/save, needs disk space = guest RAM).
+kvm_host_guests_on_shutdown: shutdown
+# On boot: start (guests that were running come back) or ignore.
+kvm_host_guests_on_boot: start
+# Seconds to wait for guests to shut down before the host continues.
+kvm_host_guests_shutdown_timeout: 300
+
+# Users added to the libvirt group (virsh without sudo); default: the admin users.
+kvm_host_libvirt_users: "{{ base_hardening_admin_users | default([]) | map(attribute='name') | list }}"
+
+# Hypervisor packages (installed without recommends).
 kvm_host_packages:
   - qemu-system-x86
   - qemu-utils
@@ -35,20 +38,13 @@ kvm_host_packages:
   - ovmf             # UEFI firmware for guests
   - lvm2
   - dnsmasq-base     # DHCP/DNS for libvirt NAT networks
-  - python3-libvirt  # community.libvirt modules
-  - python3-lxml     # community.libvirt modules
-  - numactl
+  - python3-libvirt  # needed by the community.libvirt modules
+  - python3-lxml     # needed by the community.libvirt modules
   - nvme-cli
-# Additional site-specific packages (e.g. virtinst, swtpm-tools).
-kvm_host_packages_extra: []
 
-# ── Kernel ───────────────────────────────────────────────────────────────────
-# Modules loaded now and at boot (modules-load.d); the vendor module is added.
-kvm_host_kernel_modules: [kvm, vhost_net, tun, bridge]
-# Hypervisor sysctls, written to /etc/sysctl.d/60-kvm-host.conf with the "why"
-# as a comment and applied live. net.bridge.* keys exist only while br_netfilter
-# is loaded: they are applied when it is, and re-applied by a udev rule whenever
-# br_netfilter loads later (e.g. pulled in by Docker).
+# Hypervisor sysctls, written to /etc/sysctl.d/60-kvm-host.conf with the
+# "why" as a comment and set live. net.bridge.* exists only while br_netfilter
+# is loaded; a udev rule applies it whenever the module loads.
 kvm_host_sysctl_settings:
   - name: net.bridge.bridge-nf-call-iptables
     value: 0
@@ -68,45 +64,6 @@ kvm_host_sysctl_settings:
   - name: vm.dirty_ratio
     value: 10
     why: Cap dirty page cache so a forced flush cannot block every guest's I/O for long on large-RAM hosts.
-  - name: vm.zone_reclaim_mode
-    value: 0
-    why: On NUMA hosts take memory from the other node instead of reclaiming locally (avoids guest latency spikes).
   - name: fs.aio-max-nr
     value: 1048576
     why: QEMU aio=native needs AIO contexts per disk queue; the 65536 default runs out with many NVMe-backed guests.
-
-# ── libvirt ──────────────────────────────────────────────────────────────────
-# Users added to the libvirt group (full libvirt access over qemu:///system).
-kvm_host_libvirt_users: "{{ base_hardening_admin_users | default([]) | map(attribute='name') | list }}"
-
-# ── Storage pool (directory pool on local NVMe) ─────────────────────────────
-# Name of the libvirt storage pool.
-kvm_host_storage_pool_name: nvme
-# Directory holding guest images; put the NVMe filesystem (XFS/ext4) here.
-kvm_host_storage_pool_path: /var/lib/libvirt/nvme
-# Fail unless the pool path is its own mount point (protects the root
-# filesystem from filling with guest images when the NVMe is not mounted).
-kvm_host_storage_pool_require_mountpoint: false
-
-# ── Networks ─────────────────────────────────────────────────────────────────
-# libvirt's "default" NAT network (virbr0, 192.168.122.0/24, dnsmasq on the host).
-# false: stopped and not autostarted (kept defined, so "virsh net-start default"
-# still works). true: defined, started and autostarted — useful on single-NIC labs.
-kvm_host_libvirt_default_network_enabled: false
-
-# ── libvirt-guests (what happens to running guests on host shutdown/boot) ────
-# On boot: "start" restarts guests that were running at shutdown; "ignore" leaves them off.
-kvm_host_guests_on_boot: start
-# Seconds between starting guests on boot.
-kvm_host_guests_start_delay: 0
-# On shutdown: "shutdown" (ACPI, clean) or "suspend" (managed save: RAM written
-# to /var/lib/libvirt/qemu/save and resumed on boot — needs disk space = guest RAM).
-kvm_host_guests_on_shutdown: shutdown
-# Guests shut down in parallel (0 = one at a time).
-kvm_host_guests_parallel_shutdown: 4
-# Seconds to wait for guests to shut down before the host continues.
-kvm_host_guests_shutdown_timeout: 300
-# Bypass the page cache when saving guests (on_shutdown: suspend).
-kvm_host_guests_bypass_cache: false
-# Resync the guest clock after resume (needs the QEMU guest agent).
-kvm_host_guests_sync_time: true

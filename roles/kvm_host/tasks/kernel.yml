@@ -16,61 +16,43 @@
     mode: "0644"
   when: kvm_host_vendor_module != 'none'
 
-# Container test mode: a container cannot load kernel modules.
 - name: Load KVM-related modules now
   community.general.modprobe:
     name: "{{ item }}"
     state: present
   loop: "{{ kvm_host_modules }}"
-  when: kvm_host_test_mode != 'container'
 
+# A loaded module keeps its parameters; a changed "nested" value needs a reload.
 - name: Read the current nested virtualization setting
   ansible.builtin.slurp:
     src: "/sys/module/{{ kvm_host_vendor_module }}/parameters/nested"
   register: kvm_host_nested_current
-  when:
-    - kvm_host_test_mode != 'container'
-    - kvm_host_vendor_module != 'none'
+  when: kvm_host_vendor_module != 'none'
 
 - name: Report that the nested setting applies after a reboot
   ansible.builtin.debug:
     msg: >-
       {{ kvm_host_vendor_module }} is loaded with nested={{ kvm_host_nested_current.content | b64decode | trim }};
-      /etc/modprobe.d/kvm-host.conf asks for {{ kvm_host_nested_virtualization | bool | ternary('1', '0') }}.
-      It applies when the module is reloaded (reboot, or rmmod/modprobe with no guests running).
+      the new value applies after a reboot (or a module reload with no guests running).
   when:
-    - kvm_host_test_mode != 'container'
     - kvm_host_vendor_module != 'none'
     - (kvm_host_nested_current.content | b64decode | trim) not in
       (kvm_host_nested_virtualization | bool | ternary(['1', 'Y'], ['0', 'N']))
 
-# /dev/kvm appears once kvm + the vendor module are loaded. Container test mode
-# skips this check (no /dev/kvm in the container).
+# /dev/kvm appears once kvm and the vendor module are loaded.
 - name: Check /dev/kvm
   ansible.builtin.stat:
     path: /dev/kvm
   register: kvm_host_dev_kvm
-  when: kvm_host_test_mode != 'container'
 
 - name: Assert /dev/kvm exists unless software emulation is allowed
   ansible.builtin.assert:
     that:
-      - (kvm_host_dev_kvm.stat.exists and kvm_host_dev_kvm.stat.ischr) or kvm_host_allow_software_emulation | bool
+      - kvm_host_dev_kvm.stat.exists or kvm_host_allow_software_emulation | bool
     fail_msg: >-
-      /dev/kvm is missing although the KVM modules were loaded. Check that virtualization
-      is enabled in the BIOS (or nested virtualization for a VM), or set
-      kvm_host_allow_software_emulation: true for a lab.
+      /dev/kvm is missing although the KVM modules are loaded. Enable virtualization in the
+      BIOS (or nested virtualization for a VM), or set kvm_host_allow_software_emulation: true.
     quiet: true
-  when: kvm_host_test_mode != 'container'
-
-- name: Warn that /dev/kvm is missing
-  ansible.builtin.debug:
-    msg: >-
-      WARNING: /dev/kvm does not exist on {{ inventory_hostname }}. kvm_host_allow_software_emulation
-      is true, so guests will run under QEMU TCG software emulation. Lab use only.
-  when:
-    - kvm_host_test_mode != 'container'
-    - not kvm_host_dev_kvm.stat.exists
 
 - name: Write hypervisor sysctls
   ansible.builtin.template:
@@ -85,24 +67,21 @@
     path: /proc/sys/net/bridge/bridge-nf-call-iptables
   register: kvm_host_bridge_nf
 
-# The file above is the boot-time source; this sets the live values. In
-# container test mode only network-namespaced keys are set live.
+# The file above is the boot-time source; this sets the live values key by key
+# (and leaves the file as it is when the value already matches).
 - name: Apply hypervisor sysctls
   ansible.posix.sysctl:
     name: "{{ item.name }}"
     value: "{{ item.value | string }}"
-    state: present
     sysctl_file: /etc/sysctl.d/60-kvm-host.conf
-    sysctl_set: >-
-      {{ (kvm_host_test_mode != 'container' or item.name is match(kvm_host_netns_sysctl_regex))
-         and (not item.name.startswith('net.bridge.') or kvm_host_bridge_nf.stat.exists) }}
+    sysctl_set: "{{ not item.name.startswith('net.bridge.') or kvm_host_bridge_nf.stat.exists }}"
     reload: false
   loop: "{{ kvm_host_sysctl_settings }}"
   loop_control:
     label: "{{ item.name }} = {{ item.value }}"
 
-# udev is not necessarily installed (e.g. Debian 12 without it); the rule is
-# then inert but already in place should udev arrive later.
+# Re-applies net.bridge.* from sysctl.d whenever br_netfilter loads later
+# (Docker, a CNI, ...). The directory is missing when udev is not installed.
 - name: Create the udev rules directory
   ansible.builtin.file:
     path: /etc/udev/rules.d

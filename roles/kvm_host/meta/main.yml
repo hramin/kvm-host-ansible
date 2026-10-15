@@ -5,9 +5,8 @@ galaxy_info:
   author: hramin
   description: >-
     Debian 12/13 KVM/libvirt hypervisor: virtualization preflight checks, QEMU and
-    libvirt packages, kernel modules and hypervisor sysctls, libvirt daemon and
-    socket access, NVMe directory storage pool, NAT/bridge networks,
-    libvirt-guests and log rotation.
+    libvirt packages, KVM modules and hypervisor sysctls, libvirtd, NVMe
+    directory storage pool, default NAT network, libvirt-guests and log rotation.
   license: proprietary  # no LICENSE file in this repository yet
   min_ansible_version: "2.16"
   platforms:

@@ -8,13 +8,14 @@ URIS=default
 # (or resumes them when they were suspended), "ignore" leaves them alone.
 # Guests marked autostart are started by libvirtd either way.
 ON_BOOT={{ kvm_host_guests_on_boot }}
-START_DELAY={{ kvm_host_guests_start_delay }}
+START_DELAY=0
 
 # On shutdown: "shutdown" asks each guest to shut down cleanly (ACPI);
 # "suspend" saves guest RAM to disk (managed save) and restores it on boot.
 ON_SHUTDOWN={{ kvm_host_guests_on_shutdown }}
-PARALLEL_SHUTDOWN={{ kvm_host_guests_parallel_shutdown }}
+PARALLEL_SHUTDOWN=4
 SHUTDOWN_TIMEOUT={{ kvm_host_guests_shutdown_timeout }}
 
-BYPASS_CACHE={{ kvm_host_guests_bypass_cache | bool | ternary('1', '0') }}
-SYNC_TIME={{ kvm_host_guests_sync_time | bool | ternary('1', '0') }}
+BYPASS_CACHE=0
+# Resync guest clocks after a resume (needs the QEMU guest agent in the guest).
+SYNC_TIME=1

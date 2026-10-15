@@ -1,9 +1,8 @@
 ---
 # Internal values (not meant to be overridden).
 
-# Modules to load: the configured list plus the detected vendor module
-# (kvm_host_vendor_module is set in tasks/preflight.yml).
-kvm_host_modules: "{{ kvm_host_kernel_modules + ([kvm_host_vendor_module] if kvm_host_vendor_module != 'none' else []) }}"
+kvm_host_supported_debian_versions: ["12", "13"]
 
-# sysctl keys that are per network namespace (set live in container test mode).
-kvm_host_netns_sysctl_regex: '^net\.(ipv4|ipv6|bridge)\.'
+# Modules loaded now and at boot, plus the vendor module detected in
+# tasks/preflight.yml (kvm_intel for vmx, kvm_amd for svm, none without either).
+kvm_host_modules: "{{ ['kvm', 'vhost_net', 'tun', 'bridge'] + ([kvm_host_vendor_module] if kvm_host_vendor_module != 'none' else []) }}"
