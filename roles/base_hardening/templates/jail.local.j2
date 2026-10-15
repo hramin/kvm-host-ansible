@@ -1,3 +1,6 @@
+# {{ ansible_managed }}
+# Debian 12/13: nftables ban actions, systemd journal backend (no rsyslog by default).
+#
 # WARNING: heavily refactored in 0.9.0 release.  Please review and
 #          customize settings for your setup.
 #
@@ -50,7 +53,8 @@ before = paths-debian.conf
 # "ignoreip" can be a list of IP addresses, CIDR masks or DNS hosts. Fail2ban
 # will not ban a host which matches an address in this list. Several addresses
 # can be defined using space (and/or comma) separator.
-ignoreip = 127.0.0.1/8 ::1
+ignoreip = 127.0.0.1/8 ::1{% for address in base_hardening_fail2ban_ignoreip %} {{ address }}{% endfor %}
+
 
 # External command that will take an tagged arguments to ignore, e.g. <ip>,
 # and return true if the IP is to be ignored. False otherwise.
@@ -59,14 +63,14 @@ ignoreip = 127.0.0.1/8 ::1
 ignorecommand =
 
 # "bantime" is the number of seconds that a host is banned.
-bantime  = {{ fail2ban.bantime|default('10m') }}
+bantime  = {{ base_hardening_fail2ban.bantime | default('10m') }}
 
 # A host is banned if it has generated "maxretry" during the last "findtime"
 # seconds.
-findtime  = {{ fail2ban.findtime|default('10m') }}
+findtime  = {{ base_hardening_fail2ban.findtime | default('10m') }}
 
 # "maxretry" is the number of failures before a host get banned.
-maxretry = {{ fail2ban.maxretry|default('5') }}
+maxretry = {{ base_hardening_fail2ban.maxretry | default('5') }}
 
 # "backend" specifies the backend used to get files modification.
 # Available options are "pyinotify", "gamin", "polling", "systemd" and "auto".
@@ -87,7 +91,9 @@ maxretry = {{ fail2ban.maxretry|default('5') }}
 #       for which logs are present only in its own log files, specify some other
 #       backend for that jail (e.g. polling) and provide empty value for
 #       journalmatch. See https://github.com/fail2ban/fail2ban/issues/959#issuecomment-74901200
-backend = auto
+# Debian 12/13 log to the journal only (no /var/log/auth.log without rsyslog),
+# so "auto" finds no sshd log file and the jail would not start.
+backend = systemd
 
 # "usedns" specifies if jails should trust hostnames in logs,
 #   warn when DNS lookups are performed, or ignore all hostnames in logs
@@ -163,8 +169,10 @@ fail2ban_agent = Fail2Ban/%(fail2ban_version)s
 # iptables-multiport, shorewall, etc) It is used to define
 # action_* variables. Can be overridden globally or per
 # section within jail.local file
-banaction = iptables-multiport
-banaction_allports = iptables-allports
+# nftables actions add their own "inet f2b-table" and never touch the host
+# firewall table or libvirt's tables.
+banaction = nftables-multiport
+banaction_allports = nftables-allports
 
 # The simplest action to take: ban only
 action_ = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
@@ -240,21 +248,22 @@ action = %(action_)s
 # normal (default), ddos, extra or aggressive (combines all).
 # See "tests/files/logs/sshd" or "filter.d/sshd.conf" for usage example and details.
 #mode   = normal
-port    = {{ sshd_config.Port|default('22') }}
-logpath = %(sshd_log)s
-backend = %(sshd_backend)s
+enabled = true
+port    = {{ base_hardening_sshd_port }}
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=ssh.service + _COMM=sshd
 
 
 [dropbear]
 
-port    = {{ sshd_config.Port|default('22') }}
+port    = {{ base_hardening_sshd_port }}
 logpath  = %(dropbear_log)s
 backend  = %(dropbear_backend)s
 
 
 [selinux-ssh]
 
-port    = {{ sshd_config.Port|default('22') }}
+port    = {{ base_hardening_sshd_port }}
 logpath  = %(auditd_log)s
 
 

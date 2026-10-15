@@ -1,25 +1,33 @@
 ---
 #******************************************************************************
-# Role: linux-hardening
+# Role: base_hardening
 # File: tasks/account_settings.yml
 #******************************************************************************
-- name: Set Password Expiration Days
-  lineinfile:
-    dest: '/etc/login.defs'
-    regexp: "PASS_MAX_DAYS"
-    line: "PASS_MAX_DAYS {{ password_max_day }}"
+- name: Set password expiration days
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MAX_DAYS\s'
+    line: "PASS_MAX_DAYS {{ base_hardening_password_max_days }}"
     state: present
 
-- name: Set Password Expiration Days
-  lineinfile:
-    dest: '/etc/login.defs'
-    regexp: "PASS_MIN_DAYS"
-    line: "PASS_MIN_DAYS {{ password_min_day }}"
+- name: Set password minimum days
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MIN_DAYS\s'
+    line: "PASS_MIN_DAYS {{ base_hardening_password_min_days }}"
     state: present
 
-- name: Set Default umask for Users
-  lineinfile:
-    dest: '/etc/login.defs'
-    regexp: "UMASK"
-    line: "UMASK 077"
+- name: Set default umask for users
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^UMASK\s'
+    line: "UMASK {{ base_hardening_umask }}"
     state: present
+
+- name: Set an idle timeout for interactive shells
+  ansible.builtin.template:
+    src: tmout.sh.j2
+    dest: /etc/profile.d/tmout.sh
+    owner: root
+    group: root
+    mode: "0644"

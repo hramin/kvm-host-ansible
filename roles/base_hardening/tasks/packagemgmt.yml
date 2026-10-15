@@ -1,13 +1,12 @@
 ---
-- name: configure apt
-  become: 'yes'
+- name: Configure apt
   ansible.builtin.lineinfile:
-    dest: /etc/apt/apt.conf.d/98-hardening-ubuntu
-    mode: 0644
+    dest: /etc/apt/apt.conf.d/98-hardening
+    mode: "0644"
     state: present
-    create: 'yes'
+    create: true
     line: "{{ item }}"
-  with_items:
+  loop:
     - 'Acquire::AllowDowngradeToInsecureRepositories "false";'
     - 'Acquire::AllowInsecureRepositories "false";'
     - 'Acquire::http::AllowRedirect "false";'
@@ -19,19 +18,13 @@
     - 'APT::Sandbox::Seccomp "1";'
     - 'Unattended-Upgrade::Remove-Unused-Dependencies "true";'
 
-- name: apt update
-  become: 'yes'
+# update_cache alone never reports "changed", so the old apt-get
+# clean/autoremove handlers notified from here could not fire; dropped.
+- name: Apt update
   ansible.builtin.apt:
-    update_cache: 'yes'
+    update_cache: true
     cache_valid_time: 1800
-  notify:
-    - apt-get clean
-    - apt-get autoremove
 
-- name: apt upgrade
-  become: 'yes'
-  ansible.builtin.apt:
-    upgrade: safe
-  register: apt_upgrade_response
-  changed_when: apt_upgrade_response.stdout.find('0 upgraded') == -1
+# The full package upgrade moved to tasks/upgrade.yml and runs only on request
+# (--tags upgrade), so a normal run never upgrades the system.
 ...

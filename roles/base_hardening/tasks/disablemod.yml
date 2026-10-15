@@ -1,18 +1,16 @@
 ---
-- name: disable misc kernel modules
-  become: 'yes'
+- name: Disable misc kernel modules
   ansible.builtin.lineinfile:
     dest: /etc/modprobe.d/disablemod.conf
     line: "install {{ item }} /bin/true"
-    mode: 0644
+    mode: "0644"
     owner: root
     group: root
     state: present
-    create: 'yes'
-  with_items:
-    - "{{ misc_modules_blocklist }}"
+    create: true
+  loop: "{{ base_hardening_misc_modules_blocklist }}"
 
-- name: index blacklisted kernel modules
+- name: Index blacklisted kernel modules
   environment:
     PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   ansible.builtin.shell: |
@@ -21,21 +19,19 @@
   args:
     executable: /bin/bash
   changed_when: false
-  failed_when: modprobe_blacklist.rc != 0
-  register: modprobe_blacklist
-  when: block_blacklisted|bool
+  failed_when: base_hardening_modprobe_blacklist.rc != 0
+  register: base_hardening_modprobe_blacklist
+  when: base_hardening_block_blacklisted | bool
 
-- name: block blacklisted kernel modules
-  become: 'yes'
+- name: Block blacklisted kernel modules
   ansible.builtin.lineinfile:
     dest: /etc/modprobe.d/blockblacklisted.conf
     line: "install {{ item }} /bin/true"
-    mode: 0644
+    mode: "0644"
     owner: root
     group: root
     state: present
-    create: 'yes'
-  with_items:
-    - "{{ modprobe_blacklist.stdout_lines | sort }}"
-  when: block_blacklisted|bool
+    create: true
+  loop: "{{ base_hardening_modprobe_blacklist.stdout_lines | sort }}"
+  when: base_hardening_block_blacklisted | bool
 ...

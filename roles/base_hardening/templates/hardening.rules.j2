@@ -2,6 +2,8 @@
 # https://github.com/konstruktoid/ansible-role-hardening/blob/master/templates/etc/audit/rules.d/hardening.rules.j2
 # https://github.com/konstruktoid/Ansible/blob/master/roles/docker/templates/audit.rules.j2
 # https://github.com/gds-operations/puppet-auditd/tree/master/templates
+# Adapted for Debian 12/13 KVM/libvirt hosts: Docker, Ubuntu-only and RHEL-only
+# paths removed; libvirt/QEMU and nftables watches added; -e 2 made optional.
 
 # Remove any existing rules
 -D
@@ -118,40 +120,14 @@
 -a always,exit -F arch=b32 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=-1 -k delete
 -a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=-1 -k delete
 
-# Docker configuration and tools
--a exit,always -F path=/var/lib/docker -F perm=war -k docker
--w /etc/default/docker -p rwxa -k docker
--w /etc/docker -p rwxa -k docker
--w /etc/sysconfig/docker -p rwxa -k docker
--w /etc/sysconfig/docker-network -p rwxa -k docker
--w /etc/sysconfig/docker-registry -p rwxa -k docker
--w /etc/sysconfig/docker-storage -p rwxa -k docker
--w /etc/systemd/system/docker-registry.service -p rwxa -k docker
--w /etc/systemd/system/docker.service -p rwxa -k docker
--w /lib/systemd/system/docker-registry.service -p rwxa -k docker
--w /lib/systemd/system/docker.service -p rwxa -k docker
--w /lib/systemd/system/docker.socket -p rwxa -k docker
--w /usr/bin/containerd -p rwxa -k docker
--w /usr/bin/containerd-shim -p rwxa -k docker
--w /usr/bin/containerd-shim-runc-v1 -p rwxa -k docker
--w /usr/bin/containerd-shim-runc-v2 -p rwxa -k docker
--w /usr/bin/ctr -p rwxa -k docker
--w /usr/bin/docker -p rwxa -k docker
--w /usr/bin/docker-containerd -p rwxa -k docker
--w /usr/bin/docker-containerd-ctr -p rwxa -k docker
--w /usr/bin/docker-containerd-shim -p rwxa -k docker
--w /usr/bin/docker-init -p rwxa -k docker
--w /usr/bin/docker-proxy -p rwxa -k docker
--w /usr/bin/docker-runc -p rwxa -k docker
--w /usr/bin/dockerd -p rwxa -k docker
--w /usr/bin/dockerd-ce -p rwxa -k docker
--w /usr/bin/rootlesskit -p rwxa -k docker
--w /usr/bin/rootlesskit-docker-proxy -p rwxa -k docker
--w /usr/bin/runc -p rwxa -k docker
--w /usr/lib/systemd/system/docker-registry.service -p rwxa -k docker
--w /usr/lib/systemd/system/docker.service -p rwxa -k docker
--w /usr/sbin/runc -p rwxa -k docker
--w /var/run/docker.sock -p rwxa -k docker
+# libvirt / QEMU configuration and tools (replaces the Docker block)
+-w /etc/libvirt -p wa -k libvirt
+-w /etc/default/libvirtd -p wa -k libvirt
+-w /etc/default/libvirt-guests -p wa -k libvirt
+-w /usr/bin/virsh -p x -k libvirt-tools
+-w /usr/sbin/libvirtd -p x -k libvirt-tools
+-w /usr/bin/qemu-img -p x -k libvirt-tools
+-w /usr/bin/qemu-system-x86_64 -p x -k libvirt-tools
 
 # Group modifications
 -w /etc/group -p wa -k group-modification
@@ -215,9 +191,9 @@
 -w /etc/hosts -p wa -k network-config
 -w /etc/issue -p wa -k network-config
 -w /etc/issue.net -p wa -k network-config
--w /etc/netplan -p wa -k network-config
+-w /etc/systemd/network -p wa -k network-config
+-w /etc/nftables.conf -p wa -k network-config
 -w /etc/network -p wa -k network-config
--w /etc/sysconfig/network -p wa -k network-config
 
 # PAM configuration
 -w /etc/pam.d -p wa -k pam
@@ -243,7 +219,6 @@
 -a always,exit -F path=/bin/ping6 -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/bin/su -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/bin/umount -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/sbin/pam_extrausers_chkpwd -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/sbin/pam_timestamp_check -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/sbin/unix_chkpwd -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/at -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
@@ -251,7 +226,6 @@
 -a always,exit -F path=/usr/bin/cgclassify -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/cgexec -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/chage -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/bin/chcon -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/chfn -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/chsh -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/crontab -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
@@ -274,7 +248,6 @@
 -a always,exit -F path=/usr/bin/sudoedit -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/traceroute6.iputils -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/umount -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/bin/userhelper -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/wall -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/bin/write -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/lib/dbus-1.0/dbus-daemon-launch-helper -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
@@ -282,30 +255,15 @@
 -a always,exit -F path=/usr/lib/openssh/ssh-keysign -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/lib/policykit-1/polkit-agent-helper-1 -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/lib/polkit-1/polkit-agent-helper-1 -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/lib/snapd/snap-confine -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/lib/x86_64-linux-gnu/utempter/utempter -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/libexec/abrt-action-install-debuginfo-to-abrt-cache -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/libexec/dbus-1/dbus-daemon-launch-helper -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/libexec/openssh/ssh-keysign -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/libexec/pt_chown -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/libexec/utempter/utempter -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/fping -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/fping6 -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/grub2-set-bootflag -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/mount.cifs -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/netreport -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/pam_extrausers_chkpwd -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/pam_timestamp_check -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/pam-tmpdir-helper -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/postdrop -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/postqueue -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/restorecon -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/semanage -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/setsebool -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/unix_chkpwd -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/userhelper -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/usernetct -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
--a always,exit -F path=/usr/sbin/usernetctl -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 -a always,exit -F path=/usr/sbin/vlock-main -F perm=x -F auid>=1000 -F auid!=-1 -k privileged
 
 #
@@ -323,6 +281,7 @@
 
 # Kernel modification
 -w /etc/sysctl.conf -p wa -k sysctl
+-w /etc/sysctl.d -p wa -k sysctl
 
 # Hostname changes
 -a always,exit -F arch=b32 -S sethostname -S setdomainname -k system-locale
@@ -351,4 +310,7 @@
 -w /usr/sbin/useradd -p x -k user-modification
 -w /usr/sbin/usermod -p x -k user-modification
 
+{% if base_hardening_auditd_immutable | bool %}
+# Make the configuration immutable: rule changes need a reboot from here on.
 -e 2
+{% endif %}

@@ -1,33 +1,29 @@
 ---
-- name: efi fact
+- name: Efi fact
   ansible.builtin.set_fact:
-    booted_with_efi: "{{ ansible_mounts | selectattr('mount', 'equalto', '/boot/efi') | list | length > 0 }}"
+    base_hardening_booted_with_efi: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', '/boot/efi') | list | length > 0 }}"
 
-- name: disable file system kernel modules
-  become: 'yes'
+- name: Disable file system kernel modules
   ansible.builtin.lineinfile:
     dest: /etc/modprobe.d/disablefs.conf
     line: "install {{ item }} /bin/true"
-    mode: 0644
+    mode: "0644"
     owner: root
     group: root
     state: present
-    create: 'yes'
-  with_items:
-    - "{{ fs_modules_blocklist }}"
-  when: not booted_with_efi
+    create: true
+  loop: "{{ base_hardening_fs_modules_blocklist }}"
+  when: not base_hardening_booted_with_efi
 
-- name: dont disable vfat file system kernel modules if efi
-  become: 'yes'
+- name: Dont disable vfat file system kernel modules if efi
   ansible.builtin.lineinfile:
     dest: /etc/modprobe.d/disablefs.conf
     line: "install {{ item }} /bin/true"
-    mode: 0644
+    mode: "0644"
     owner: root
     group: root
     state: present
-    create: 'yes'
-  with_items:
-    - "{{ fs_modules_blocklist | reject('search','vfat') | list }}"
-  when: booted_with_efi|bool
+    create: true
+  loop: "{{ base_hardening_fs_modules_blocklist | reject('search', 'vfat') | list }}"
+  when: base_hardening_booted_with_efi | bool
 ...
