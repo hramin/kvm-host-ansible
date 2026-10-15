@@ -2,10 +2,6 @@
 # Handlers only reload/restart the service whose own configuration changed.
 # Order matters: handlers run in the order they are defined here.
 
-- name: Reload systemd units
-  ansible.builtin.systemd_service:
-    daemon_reload: true
-
 # reload = SIGHUP: sshd re-reads its config, existing sessions stay up.
 - name: Reload ssh
   ansible.builtin.systemd_service:
