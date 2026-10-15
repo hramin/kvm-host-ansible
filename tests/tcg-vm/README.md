@@ -25,4 +25,6 @@ the controller as the Docker bridge gateway (172.17.0.1), so the management CIDR
 is `172.17.0.0/16`. The preflight lock-out guard found that on the first attempt
 (`tests/output/tcg-vm-attempt1-lockout-guard.log`).
 
-Results of the run on 2026-10-15: `tests/output/tcg-vm-*.log`.
+Results of the runs on 2026-10-15: `tests/output/run1.log` and `run2.log`
+(pristine VM, commit `a3afec9`) and `tests/output/tcg-vm-*.log` (earlier
+attempts, state checks, ruleset comparison).

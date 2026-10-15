@@ -438,9 +438,9 @@ below: it has no vmx/svm, so it uses `kvm_host_allow_software_emulation: true`.
 |---|---|---|
 | `ansible-playbook --syntax-check`, `yamllint`, `ansible-lint` (production) | clean | — |
 | molecule `default`, Debian 12 + 13: create → converge → idempotence → verify → destroy | converge `changed=75` / `68`, `failed=0`; **idempotence `changed=0` on both**; verify 44 / 42 checks ok, `failed=0` | `tests/output/molecule-*.log` |
-| QEMU/TCG Debian 13 VM, `scripts/test-idempotency.sh` (run 1 as `debian`, run 2 as admin) | run 1 `changed=75 failed=0`; run 2 `changed=0 failed=0` → PASS | `tests/output/tcg-vm-run{1,2}.log` |
-| same VM, third run + live ruleset comparison | `changed=0`; ruleset identical apart from counters (7 tables: ours + libvirt's 6) | `tests/output/tcg-vm-ruleset-rerun.log`, `tcg-vm-run3.log` |
-| same VM, state checks | debian/root/password logins refused; libvirt tables survive nftables reload **and** restart; `-e 2` rules loaded; no failed units | `tests/output/tcg-vm-checks.log` |
+| QEMU/TCG Debian 13 VM reset to the pristine disk, `scripts/test-idempotency.sh` at commit `a3afec9` (run 1 as `debian`, run 2 as admin) | run 1 `ok=121 changed=75 failed=0`; **run 2 `ok=108 changed=0 failed=0` → PASS** | `tests/output/run1.log`, `tests/output/run2.log` |
+| earlier VM run with the same role code (after fix `f984027`): third run + live ruleset comparison | `changed=0`; ruleset identical apart from counters (7 tables: ours + libvirt's 6) | `tests/output/tcg-vm-ruleset-rerun.log`, `tcg-vm-run3.log` |
+| same earlier VM run, state checks | debian/root/password logins refused; libvirt tables survive nftables reload **and** restart; `-e 2` rules loaded; no failed units | `tests/output/tcg-vm-checks.log` |
 
 Bugs these runs found and fixed: `ipv6.disable=1` kernels, `/etc/protocols` lookup
 in nft rules, mounting `/tmp` from under the running module, a leftover seed
@@ -469,6 +469,10 @@ The script runs `site.yml` twice against `inventories/lab` with
 `tests/output/run2.log`, and exits non-zero unless the second run's PLAY RECAP
 shows `changed=0`, `failed=0` and `unreachable=0` (it then lists the tasks that
 changed). Extra arguments are passed to `ansible-playbook`.
+
+The `tests/output/run1.log` and `run2.log` in the repository come from the
+QEMU/TCG VM (see above); the first line of each shows the inventory used. Your
+lab run overwrites them, so commit yours to replace them.
 
 ### Results / what did not work
 
