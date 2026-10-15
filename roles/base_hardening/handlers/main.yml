@@ -1,0 +1,68 @@
+---
+# Handlers only reload/restart the service whose own configuration changed.
+# Order matters: handlers run in the order they are defined here.
+
+- name: Reload systemd units
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+# reload = SIGHUP: sshd re-reads its config, existing sessions stay up.
+- name: Reload ssh
+  ansible.builtin.systemd_service:
+    name: ssh
+    state: reloaded
+
+# Reload re-runs "nft -f /etc/nftables.conf", which atomically replaces only
+# the role's own table. Never "restarted": ExecStop would delete the table first.
+- name: Reload nftables
+  ansible.builtin.systemd_service:
+    name: nftables
+    state: reloaded
+  when: base_hardening_test_mode != 'container'
+
+- name: Restart chrony
+  ansible.builtin.systemd_service:
+    name: chrony
+    state: restarted
+
+- name: Restart journald
+  ansible.builtin.systemd_service:
+    name: systemd-journald
+    state: restarted
+
+# A mount unit's "reload" remounts it with the new options (no unmount).
+- name: Remount tmp
+  ansible.builtin.systemd_service:
+    name: tmp.mount
+    state: reloaded
+
+- name: Update grub
+  ansible.builtin.command: update-grub
+  changed_when: true
+
+# With -e 2 already active the kernel refuses rule changes until reboot;
+# report that instead of failing the play.
+- name: Load audit rules
+  ansible.builtin.shell: |
+    set -o pipefail
+    if auditctl -s | grep -q '^enabled 2'; then
+      echo "audit rules are immutable (-e 2): the new rules apply after the next reboot"
+    else
+      augenrules --load
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: base_hardening_test_mode != 'container'
+
+# SIGHUP: auditd re-reads auditd.conf (Debian's unit allows reload).
+- name: Reload auditd
+  ansible.builtin.systemd_service:
+    name: auditd
+    state: reloaded
+  when: base_hardening_test_mode != 'container'
+
+- name: Restart fail2ban
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    state: restarted

@@ -1,0 +1,13 @@
+---
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ base_hardening_packages + base_hardening_packages_extra }}"
+    state: present
+    install_recommends: false
+
+# Absent packages are a no-op; only installed ones are purged (first run only).
+- name: Purge blocklisted packages
+  ansible.builtin.apt:
+    name: "{{ base_hardening_packages_blocklist }}"
+    state: absent
+    purge: true

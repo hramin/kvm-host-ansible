@@ -1,0 +1,17 @@
+---
+# Internal constants (not meant to be overridden).
+
+# sysctl keys that are per network namespace. In container test mode only these
+# are set live; every other key would change the container host's kernel.
+# (net.core.bpf_jit_harden, for example, is global and therefore not matched.)
+base_hardening_netns_sysctl_regex: '^net\.(ipv4|ipv6|bridge)\.'
+
+# Connection plugins that reach the target over SSH (controller address check).
+base_hardening_ssh_connection_plugins:
+  - ssh
+  - smart
+  - paramiko
+  - paramiko_ssh
+  - ansible.builtin.ssh
+  - ansible.builtin.paramiko_ssh
+  - ansible.legacy.ssh

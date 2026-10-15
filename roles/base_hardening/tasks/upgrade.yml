@@ -1,0 +1,28 @@
+---
+# Opt-in only: imported with tags [never, upgrade], so it runs solely with
+#   ansible-playbook site.yml --tags upgrade
+# A normal run never upgrades packages (and so stays idempotent).
+- name: Upgrade installed packages
+  ansible.builtin.apt:
+    upgrade: "{{ base_hardening_upgrade_mode }}"
+    update_cache: true
+    cache_valid_time: 1800
+
+# Debian only writes /run/reboot-required when unattended-upgrades is
+# installed, so compare the running kernel with the newest installed one.
+- name: List installed kernels
+  ansible.builtin.find:
+    paths: /boot
+    patterns: "vmlinuz-*"
+  register: base_hardening_installed_kernels
+
+- name: Report a pending reboot for a new kernel
+  ansible.builtin.debug:
+    msg: >-
+      Kernel {{ base_hardening_newest_kernel }} is installed but {{ ansible_facts['kernel'] }}
+      is running: reboot to finish the upgrade.
+  vars:
+    base_hardening_newest_kernel: >-
+      {{ base_hardening_installed_kernels.files | map(attribute='path') | map('basename')
+         | map('regex_replace', '^vmlinuz-', '') | community.general.version_sort | last | default(ansible_facts['kernel']) }}
+  when: base_hardening_newest_kernel != ansible_facts['kernel']

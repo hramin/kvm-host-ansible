@@ -1,0 +1,24 @@
+---
+galaxy_info:
+  role_name: base_hardening
+  namespace: hramin
+  author: hramin
+  description: >-
+    Debian 12/13 server hardening for KVM hosts: admin users and SSH, nftables
+    host firewall that coexists with libvirt, chrony, sysctl hardening,
+    journald, auditd, fail2ban, module blocklists.
+  license: proprietary  # no LICENSE file in this repository yet
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - hardening
+    - debian
+    - nftables
+    - ssh
+    - auditd
+
+dependencies: []

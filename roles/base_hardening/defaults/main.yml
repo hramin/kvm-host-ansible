@@ -1,0 +1,264 @@
+---
+# =============================================================================
+# base_hardening — defaults
+# Every variable the role reads is listed here with what it does. Values that
+# have no safe default (management CIDRs, admin users) are empty and asserted
+# in preflight. README "Variables" has the same list as a table.
+# =============================================================================
+
+# ── Test mode ────────────────────────────────────────────────────────────────
+# Follows kvm_host_test_mode; set that one, not this. "container" skips only
+# what a container cannot do (live non-namespaced sysctls, live nftables load,
+# auditd service/rule load, GRUB). See README "Container test mode".
+base_hardening_test_mode: "{{ kvm_host_test_mode | default('off') }}"
+
+# ── Preflight ────────────────────────────────────────────────────────────────
+# Debian major version the target must run. The play fails on any other release.
+base_hardening_debian_version: "13"
+# Debian major versions this role supports.
+base_hardening_supported_debian_versions: ["12", "13"]
+# Fail before touching SSH/firewall when the controller's SSH source address
+# is outside base_hardening_management_cidrs (the next connection would be
+# dropped by the firewall). Only checked for SSH connections.
+base_hardening_check_controller_in_management_cidrs: true
+
+# ── Management access ────────────────────────────────────────────────────────
+# Networks (IPv4 and/or IPv6 CIDRs) allowed to reach SSH. Required.
+base_hardening_management_cidrs: []
+
+# ── Admin users ──────────────────────────────────────────────────────────────
+# Group whose members may log in over SSH (sshd AllowGroups) and use sudo.
+base_hardening_admin_group: admins
+# Admin accounts, created before sshd is reconfigured. Each item:
+#   name:     login name (required)
+#   ssh_keys: list of public keys (required, at least one)
+#   comment:  GECOS field (optional)
+#   shell:    login shell (optional, default /bin/bash)
+#   password: crypt(3) hash (optional; needed only when sudo asks for passwords)
+base_hardening_admin_users: []
+# Remove authorized keys that are not listed in ssh_keys from admin accounts.
+base_hardening_admin_keys_exclusive: true
+# Passwordless sudo for the admin group. Key-only accounts have no password,
+# so they need this; set false only if every admin has a password hash.
+base_hardening_admin_sudo_nopasswd: true
+
+# ── SSH daemon ───────────────────────────────────────────────────────────────
+# Port sshd listens on (also used by the firewall and fail2ban).
+base_hardening_sshd_port: 22
+# Addresses sshd binds to.
+base_hardening_sshd_listen_addresses: ["0.0.0.0"]
+# inet (IPv4 only), inet6 or any. Must cover base_hardening_sshd_listen_addresses.
+base_hardening_sshd_address_family: inet
+# Allow password logins (keys only by default).
+base_hardening_sshd_password_authentication: false
+# Allow SSH TCP port forwarding (-L/-R).
+base_hardening_sshd_allow_tcp_forwarding: false
+# Optional AllowUsers list, applied in addition to AllowGroups (both must match).
+base_hardening_sshd_allow_users: []
+# Authentication attempts per connection.
+base_hardening_sshd_max_auth_tries: 3
+# Sessions per connection (Ansible's ControlPersist reuses one connection).
+base_hardening_sshd_max_sessions: 2
+# Seconds between keepalive probes to idle clients.
+base_hardening_sshd_client_alive_interval: 300
+# Unanswered keepalive probes before the client is disconnected.
+base_hardening_sshd_client_alive_count_max: 2
+
+# ── Firewall (nftables) ──────────────────────────────────────────────────────
+# Manage /etc/nftables.conf and nftables.service.
+base_hardening_firewall_enabled: true
+# The one nftables table this role owns. Reloads replace only this table.
+base_hardening_firewall_table: host_firewall
+# Extra inbound ports. Each item: port (number or "from-to"), proto (tcp|udp),
+# sources (list of CIDRs; default base_hardening_management_cidrs).
+# Example: [{port: "5900-5999", proto: tcp}] for VNC consoles from management.
+base_hardening_firewall_allowed_ports: []
+# Interfaces on which guests reach the host's dnsmasq (DHCP/DNS) — libvirt NAT
+# and isolated network bridges. Matching nothing is harmless.
+base_hardening_firewall_guest_service_interfaces: ["virbr*"]
+# Accept ICMP/ICMPv6 echo requests (rate limited).
+base_hardening_firewall_allow_icmp_echo: true
+# Log dropped inbound packets (rate limited) with prefix "host_firewall drop: ".
+base_hardening_firewall_log_dropped: true
+
+# ── Time (chrony) ────────────────────────────────────────────────────────────
+# NTP pools for chrony. Debian's own default; point to internal servers in production.
+base_hardening_chrony_pools: ["2.debian.pool.ntp.org"]
+# Individual NTP servers (used in addition to the pools).
+base_hardening_chrony_servers: []
+# chrony "makestep" threshold/limit: step the clock if off by more than 1 s in the first 3 updates.
+base_hardening_chrony_makestep: "1 3"
+# Time daemons that conflict with chrony; purged.
+base_hardening_ntp_conflicting_packages: [ntp, ntpsec, systemd-timesyncd, openntpd]
+
+# ── Packages ─────────────────────────────────────────────────────────────────
+# Base packages: services this role configures plus basic admin tools.
+base_hardening_packages:
+  - sudo
+  - openssh-server
+  - chrony
+  - nftables
+  - fail2ban
+  - python3-systemd   # fail2ban's journal backend
+  - auditd
+  - cron
+  - logrotate
+  - ca-certificates
+  - curl
+  - less
+  - vim-tiny
+  - htop
+  - tmux
+  - lsof
+  - tcpdump
+  - rsync
+  - jq
+  - bash-completion
+  - procps
+  - iproute2
+  - pciutils
+  - ethtool
+# Additional site-specific packages.
+base_hardening_packages_extra: []
+# Packages purged when present (legacy clear-text/network services, telemetry).
+base_hardening_packages_blocklist:
+  - telnet
+  - inetutils-telnet
+  - telnetd
+  - rsh-client
+  - rsh-server
+  - talk
+  - talkd
+  - nis
+  - tftp-hpa
+  - xinetd
+  - avahi-daemon
+  - rpcbind
+  - popularity-contest
+  - prelink
+# apt upgrade mode for the opt-in upgrade task (--tags upgrade): safe | full | dist | yes.
+base_hardening_upgrade_mode: safe
+
+# ── Accounts / shell ─────────────────────────────────────────────────────────
+# login.defs PASS_MAX_DAYS for new passwords.
+base_hardening_password_max_days: 120
+# login.defs PASS_MIN_DAYS for new passwords.
+base_hardening_password_min_days: 7
+# login.defs UMASK (also the home directory mode basis).
+base_hardening_umask: "077"
+# Idle timeout in seconds for interactive login shells (TMOUT, read-only).
+base_hardening_shell_timeout: 600
+
+# ── Kernel modules (modprobe.d "install <mod> /bin/true") ────────────────────
+# Also block every module that is already "blacklist"ed in modprobe.d.
+base_hardening_block_blacklisted: false
+# Filesystems nobody needs on a hypervisor (vfat is kept when booted via EFI).
+base_hardening_fs_modules_blocklist:
+  - cramfs
+  - freevxfs
+  - hfs
+  - hfsplus
+  - jffs2
+  - squashfs
+  - udf
+  - vfat
+# Hardware/protocol modules a server does not use.
+base_hardening_misc_modules_blocklist:
+  - bluetooth
+  - bnep
+  - btusb
+  - can
+  - cpia2
+  - firewire-core
+  - floppy
+  - n_hdlc
+  - net-pf-31
+  - pcspkr
+  - soundcore
+  - thunderbolt
+  - usb-midi
+  - usb-storage
+  - uvcvideo
+  - v4l2_common
+# Rarely used network protocols with a history of kernel bugs.
+base_hardening_net_modules_blocklist:
+  - atm
+  - dccp
+  - sctp
+  - rds
+  - tipc
+
+# ── Kernel parameters ────────────────────────────────────────────────────────
+# Disable IPv6 on the host. Off by default: guests and libvirt networks may
+# need IPv6, and the inet firewall table filters IPv6 exactly like IPv4.
+base_hardening_disable_ipv6: false
+# kernel.sysrq bitmask. 176 = sync (16) + remount read-only (32) + reboot (128):
+# enough to recover a hung hypervisor from the console, no debug/kill functions.
+base_hardening_sysctl_kernel_sysrq: 176
+
+# ── Mounts ───────────────────────────────────────────────────────────────────
+# Mount /tmp as tmpfs with noexec,nodev,nosuid.
+base_hardening_tmp_mount_enabled: true
+# Size cap for the /tmp tmpfs (tmpfs memory competes with guest RAM).
+base_hardening_tmp_mount_size: 2G
+# /proc hidepid: off | noaccess | invisible | ptraceable. "invisible" hides
+# other users' processes (QEMU command lines name every VM and disk) from
+# non-root users; libvirt access does not depend on it (socket group, no polkit).
+base_hardening_proc_hidepid: invisible
+# Group exempt from hidepid (procfs gid=), e.g. for a monitoring agent. "" = none.
+base_hardening_proc_hidepid_group: ""
+
+# ── journald ─────────────────────────────────────────────────────────────────
+# Disk space the persistent journal may use.
+base_hardening_journald_system_max_use: 1G
+# Disk space journald always leaves free.
+base_hardening_journald_system_keep_free: 2G
+# Size of one journal file before rotation.
+base_hardening_journald_system_max_file_size: 128M
+# Drop journal entries older than this.
+base_hardening_journald_max_retention: 3month
+# Also forward to a syslog daemon (Debian 12/13 install none by default).
+base_hardening_journald_forward_to_syslog: false
+
+# ── auditd ───────────────────────────────────────────────────────────────────
+# Install the role's audit rules (templates/hardening.rules.j2).
+base_hardening_auditd_apply_rules: true
+# Make the loaded rules immutable (-e 2). Later rule changes need a reboot;
+# the rules handler detects this and reports it instead of failing.
+base_hardening_auditd_immutable: true
+# Account notified by auditd mail actions.
+base_hardening_auditd_action_mail_acct: root
+# Action when free space reaches admin_space_left.
+base_hardening_auditd_admin_space_left_action: suspend
+# Action on a disk write error.
+base_hardening_auditd_disk_error_action: suspend
+# Action when the audit partition is full.
+base_hardening_auditd_disk_full_action: suspend
+# Maximum size of one audit log file in MB.
+base_hardening_auditd_max_log_file: 8
+# What to do when max_log_file is reached.
+base_hardening_auditd_max_log_file_action: keep_logs
+# Failure mode (-f): 0 silent, 1 printk, 2 panic.
+base_hardening_auditd_mode: 1
+# Number of rotated logs kept (with max_log_file_action = rotate).
+base_hardening_auditd_num_logs: 5
+# Free space (MB) that triggers space_left_action.
+base_hardening_auditd_space_left: 75
+# The old role used "email", which needs an MTA (/usr/lib/sendmail) that a
+# minimal Debian install does not have, so the warning would go nowhere; log it.
+base_hardening_auditd_space_left_action: syslog
+# Add the audit kernel arguments to GRUB and run update-grub (handler).
+base_hardening_auditd_grub_cmdline_enabled: true
+# Enable auditing from early boot, before auditd starts.
+base_hardening_grub_audit_cmdline: audit=1
+# Kernel audit backlog so early-boot events are not lost.
+base_hardening_grub_audit_backlog_cmdline: audit_backlog_limit=8192
+
+# ── fail2ban ─────────────────────────────────────────────────────────────────
+# Ban time, find window and retries for all jails (jail.local [DEFAULT]).
+base_hardening_fail2ban:
+  bantime: 10m
+  findtime: 10m
+  maxretry: 5
+# Extra addresses/CIDRs fail2ban never bans (localhost is always ignored).
+base_hardening_fail2ban_ignoreip: []

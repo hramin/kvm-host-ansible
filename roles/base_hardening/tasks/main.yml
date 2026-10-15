@@ -1,0 +1,76 @@
+---
+# Order matters:
+#   - admin users, keys and sudo exist before sshd is restricted to them;
+#   - sshd and the firewall come after the controller-address check in preflight.
+- name: Preflight checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [always]
+
+- name: Apt configuration and cache
+  ansible.builtin.import_tasks: packagemgmt.yml
+  tags: [packages]
+
+- name: Full package upgrade (opt-in, --tags upgrade)
+  ansible.builtin.import_tasks: upgrade.yml
+  tags: [never, upgrade]
+
+- name: Packages
+  ansible.builtin.import_tasks: packages.yml
+  tags: [packages]
+
+- name: Admin users, SSH keys and sudo
+  ansible.builtin.import_tasks: users.yml
+  tags: [users, ssh]
+
+- name: SSH daemon
+  ansible.builtin.import_tasks: ssh.yml
+  tags: [ssh]
+
+- name: Host firewall (nftables)
+  ansible.builtin.import_tasks: firewall.yml
+  when: base_hardening_firewall_enabled | bool
+  tags: [firewall]
+
+- name: Time synchronisation (chrony)
+  ansible.builtin.import_tasks: ntp.yml
+  tags: [ntp]
+
+- name: Account settings
+  ansible.builtin.import_tasks: account_settings.yml
+  tags: [accounts]
+
+- name: Cron permissions
+  ansible.builtin.import_tasks: cron.yml
+  tags: [cron]
+
+- name: Filesystem module blocklist
+  ansible.builtin.import_tasks: disablefs.yml
+  tags: [kernel_modules]
+
+- name: Misc module blocklist
+  ansible.builtin.import_tasks: disablemod.yml
+  tags: [kernel_modules]
+
+- name: Network protocol module blocklist
+  ansible.builtin.import_tasks: disablenet.yml
+  tags: [kernel_modules]
+
+- name: Kernel hardening sysctls
+  ansible.builtin.import_tasks: tuning.yml
+  tags: [sysctl]
+
+- name: Mount options (/tmp, /proc)
+  ansible.builtin.import_tasks: mounts.yml
+  tags: [mounts]
+
+- name: Journald
+  ansible.builtin.import_tasks: journald.yml
+  tags: [logging]
+
+- name: Auditd
+  ansible.builtin.import_tasks: auditd.yml
+  tags: [logging, auditd]
+
+- name: Fail2ban
+  ansible.builtin.import_tasks: fail2ban.yml
+  tags: [fail2ban]
