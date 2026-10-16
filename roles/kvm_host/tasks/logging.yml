@@ -1,0 +1,18 @@
+---
+# These replace the files libvirt-daemon-system ships under the same names
+# (a second logrotate file for the same logs would make logrotate fail).
+- name: Rotate libvirt daemon logs
+  ansible.builtin.template:
+    src: logrotate-libvirtd.j2
+    dest: /etc/logrotate.d/libvirtd
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Rotate QEMU guest logs
+  ansible.builtin.template:
+    src: logrotate-libvirtd-qemu.j2
+    dest: /etc/logrotate.d/libvirtd.qemu
+    owner: root
+    group: root
+    mode: "0644"

@@ -1,0 +1,58 @@
+---
+# Kernel hardening parameters (CIS-aligned). Each key is written to
+# /etc/sysctl.d/99-hardening.conf (applied at boot) and set live one by one,
+# so a rerun only reports a key whose file entry or live value differs.
+# net.ipv4.ip_forward is deliberately not managed: libvirt turns it on for
+# NAT networks and pinning it here would undo that on every run.
+# A kernel booted with ipv6.disable=1 has no net.ipv6.* keys; those are then
+# only written to the file.
+- name: Check whether the kernel has IPv6
+  ansible.builtin.stat:
+    path: /proc/sys/net/ipv6
+  register: base_hardening_ipv6_proc
+
+- name: Apply kernel hardening sysctls
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value | string }}"
+    sysctl_file: /etc/sysctl.d/99-hardening.conf
+    sysctl_set: "{{ base_hardening_ipv6_proc.stat.exists or not item.key.startswith('net.ipv6.') }}"
+    reload: false
+  loop: "{{ base_hardening_sysctls | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} = {{ item.value }}"
+  vars:
+    base_hardening_sysctls:
+      # No ICMP redirects or source routing; strict reverse-path filtering.
+      net.ipv4.conf.all.accept_redirects: 0
+      net.ipv4.conf.default.accept_redirects: 0
+      net.ipv4.conf.all.send_redirects: 0
+      net.ipv4.conf.default.send_redirects: 0
+      net.ipv6.conf.all.accept_redirects: 0
+      net.ipv6.conf.default.accept_redirects: 0
+      net.ipv4.conf.all.accept_source_route: 0
+      net.ipv4.conf.default.accept_source_route: 0
+      net.ipv4.conf.all.rp_filter: 1
+      net.ipv4.conf.default.rp_filter: 1
+      net.ipv4.conf.all.log_martians: 1
+      net.ipv4.conf.default.log_martians: 1
+      net.ipv4.icmp_echo_ignore_broadcasts: 1
+      net.ipv4.icmp_ignore_bogus_error_responses: 1
+      net.ipv4.tcp_syncookies: 1
+      net.ipv4.tcp_rfc1337: 1
+      # Kernel information leaks, core dumps of setuid programs.
+      kernel.dmesg_restrict: 1
+      kernel.kptr_restrict: 2
+      kernel.printk: 3 4 1 7          # multi-value key: compared word by word
+      fs.suid_dumpable: 0
+      # 176 = sync + remount read-only + reboot: enough to recover a hung
+      # hypervisor from the console, no debug or process-kill functions.
+      kernel.sysrq: 176
+      kernel.yama.ptrace_scope: 1
+      kernel.randomize_va_space: 2
+      kernel.unprivileged_bpf_disabled: 1
+      net.core.bpf_jit_harden: 2
+      dev.tty.ldisc_autoload: 0
+      fs.protected_fifos: 2
+      fs.protected_hardlinks: 1
+      fs.protected_symlinks: 1

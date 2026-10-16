@@ -1,0 +1,57 @@
+---
+# Rendered and checked with "nft -c" (parse + kernel validation, nothing
+# applied) before it replaces the old file.
+- name: Render the host firewall ruleset
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: "0750"
+    validate: /usr/sbin/nft -c -f %s
+  notify: Reload nftables
+
+- name: Create the nftables.service drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/nftables.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Stop nftables.service from flushing the whole ruleset
+  ansible.builtin.template:
+    src: nftables-service-override.conf.j2
+    dest: /etc/systemd/system/nftables.service.d/10-host-firewall.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: base_hardening_nftables_override
+
+# daemon-reload (only when the drop-in changed) before the unit is enabled and
+# started, so systemd already knows the new ExecStop.
+- name: Enable nftables at boot
+  ansible.builtin.systemd_service:
+    name: nftables
+    enabled: true
+    daemon_reload: "{{ base_hardening_nftables_override is changed }}"
+
+- name: Start nftables (loads the ruleset)
+  ansible.builtin.systemd_service:
+    name: nftables
+    state: started
+
+# Self-heal without false "changed": only reload when the table has gone
+# missing (e.g. someone ran "nft flush ruleset" by hand).
+- name: Check that the host firewall table is loaded
+  ansible.builtin.command: /usr/sbin/nft list table inet {{ base_hardening_firewall_table }}
+  register: base_hardening_nft_table
+  changed_when: false
+  failed_when: false
+  check_mode: false   # read-only; must also run under --check
+
+- name: Reload the ruleset when the host firewall table is missing
+  ansible.builtin.systemd_service:
+    name: nftables
+    state: reloaded
+  when: base_hardening_nft_table.rc != 0

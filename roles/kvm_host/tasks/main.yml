@@ -1,0 +1,32 @@
+---
+- name: Preflight checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [always]
+
+- name: Hypervisor packages
+  ansible.builtin.import_tasks: packages.yml
+  tags: [packages]
+
+- name: Kernel modules and hypervisor sysctls
+  ansible.builtin.import_tasks: kernel.yml
+  tags: [kernel, sysctl]
+
+- name: Libvirt daemon and access
+  ansible.builtin.import_tasks: libvirt.yml
+  tags: [libvirt]
+
+- name: Storage pool
+  ansible.builtin.import_tasks: storage.yml
+  tags: [libvirt, storage]
+
+- name: Networks
+  ansible.builtin.import_tasks: network.yml
+  tags: [libvirt, network]
+
+- name: Libvirt-guests shutdown/boot behaviour
+  ansible.builtin.import_tasks: guests.yml
+  tags: [libvirt, guests]
+
+- name: Libvirt and QEMU log rotation
+  ansible.builtin.import_tasks: logging.yml
+  tags: [logging]

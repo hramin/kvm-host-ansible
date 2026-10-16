@@ -1,0 +1,37 @@
+---
+- name: Assert a supported Debian release
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Debian'
+      - ansible_facts['distribution_major_version'] in kvm_host_supported_debian_versions
+    fail_msg: "kvm_host supports Debian {{ kvm_host_supported_debian_versions | join(' and ') }} only."
+    quiet: true
+
+# rc 1 = no match (no hardware virtualization); anything above is an error.
+- name: Detect hardware virtualization (vmx/svm CPU flag)
+  ansible.builtin.command: grep -m1 -owE 'vmx|svm' /proc/cpuinfo
+  register: kvm_host_cpu_virt_flag
+  changed_when: false
+  check_mode: false   # read-only; must also run under --check
+  failed_when: kvm_host_cpu_virt_flag.rc > 1
+
+- name: Choose the KVM vendor module
+  ansible.builtin.set_fact:
+    kvm_host_vendor_module: "{{ {'vmx': 'kvm_intel', 'svm': 'kvm_amd'}.get(kvm_host_cpu_virt_flag.stdout | trim, 'none') }}"
+
+- name: Assert hardware virtualization unless software emulation is allowed
+  ansible.builtin.assert:
+    that:
+      - kvm_host_cpu_virt_flag.rc == 0 or kvm_host_allow_software_emulation | bool
+    fail_msg: >-
+      The CPU exposes neither vmx (Intel VT-x) nor svm (AMD-V). Enable it in the BIOS, or
+      nested virtualization for a VM. For a lab without it, set
+      kvm_host_allow_software_emulation: true (guests then run under slow software emulation).
+    quiet: true
+
+- name: Warn that guests will run without KVM acceleration
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: no vmx/svm CPU flag. kvm_host_allow_software_emulation is true, so the play
+      continues, but guests will run under QEMU software emulation. Lab use only.
+  when: kvm_host_cpu_virt_flag.rc != 0

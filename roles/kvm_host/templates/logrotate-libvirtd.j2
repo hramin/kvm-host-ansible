@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# libvirt daemon log files (only written when a file log output is
+# configured; by default libvirtd logs to the journal).
+/var/log/libvirt/*.log {
+        weekly
+        rotate 8
+        maxsize 100M
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+}

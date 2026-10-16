@@ -1,0 +1,13 @@
+---
+# Internal constants (not meant to be overridden).
+
+base_hardening_supported_debian_versions: ["12", "13"]
+
+# The one nftables table this role owns; loads and reloads replace only it.
+base_hardening_firewall_table: host_firewall
+
+# Time daemons that conflict with chrony (purged).
+base_hardening_ntp_conflicting_packages: [ntp, ntpsec, systemd-timesyncd, openntpd]
+
+# Connection plugins that reach the target over SSH (controller address check).
+base_hardening_ssh_connection_plugins: [ssh, smart, paramiko, paramiko_ssh, ansible.builtin.ssh, ansible.builtin.paramiko_ssh, ansible.legacy.ssh]

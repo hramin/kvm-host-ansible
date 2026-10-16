@@ -1,0 +1,6 @@
+---
+- name: Install hypervisor packages
+  ansible.builtin.apt:
+    name: "{{ kvm_host_packages }}"
+    state: present
+    install_recommends: false

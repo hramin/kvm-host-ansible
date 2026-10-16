@@ -1,0 +1,27 @@
+---
+# Debian starts libvirtd socket-activated with "--timeout 120", so the daemon
+# exits after two idle minutes and "running" would differ from run to run.
+# Empty arguments keep it running.
+- name: Keep libvirtd running (no idle timeout)
+  ansible.builtin.template:
+    src: libvirtd.default.j2
+    dest: /etc/default/libvirtd
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart libvirtd
+
+# Debian's polkit rule (60-libvirt.rules) gives the libvirt group full
+# access to qemu:///system, so admins can use virsh without sudo.
+- name: Add admin users to the libvirt group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: [libvirt]
+    append: true
+  loop: "{{ kvm_host_libvirt_users }}"
+
+- name: Enable and start libvirtd
+  ansible.builtin.systemd_service:
+    name: libvirtd
+    enabled: true
+    state: started

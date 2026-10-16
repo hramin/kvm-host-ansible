@@ -1,0 +1,55 @@
+---
+- name: List libvirt networks
+  community.libvirt.virt_net:
+    command: list_nets
+  register: kvm_host_libvirt_networks
+  changed_when: false
+
+# ── libvirt "default" NAT network ────────────────────────────────────────────
+# Disabled by default: production guests use the bridge, and the NAT network
+# would add a 192.168.122.0/24 router, dnsmasq and libvirt firewall rules on
+# every host. It stays defined, so it can be started by hand at any time.
+- name: Stop the default NAT network
+  community.libvirt.virt_net:
+    name: default
+    state: inactive
+  when:
+    - not kvm_host_libvirt_default_network_enabled | bool
+    - "'default' in kvm_host_libvirt_networks.list_nets"
+
+- name: Do not autostart the default NAT network
+  community.libvirt.virt_net:
+    name: default
+    autostart: false
+  when:
+    - not kvm_host_libvirt_default_network_enabled | bool
+    - "'default' in kvm_host_libvirt_networks.list_nets"
+
+- name: Read libvirt's default network definition
+  ansible.builtin.slurp:
+    src: /usr/share/libvirt/networks/default.xml
+  register: kvm_host_default_net_xml
+  when:
+    - kvm_host_libvirt_default_network_enabled | bool
+    - "'default' not in kvm_host_libvirt_networks.list_nets"
+
+- name: Define the default NAT network
+  community.libvirt.virt_net:
+    command: define
+    name: default
+    xml: "{{ kvm_host_default_net_xml.content | b64decode }}"
+  when:
+    - kvm_host_libvirt_default_network_enabled | bool
+    - "'default' not in kvm_host_libvirt_networks.list_nets"
+
+- name: Start the default NAT network
+  community.libvirt.virt_net:
+    name: default
+    state: active
+  when: kvm_host_libvirt_default_network_enabled | bool
+
+- name: Autostart the default NAT network
+  community.libvirt.virt_net:
+    name: default
+    autostart: true
+  when: kvm_host_libvirt_default_network_enabled | bool

@@ -1,0 +1,8 @@
+---
+# Internal values (not meant to be overridden).
+
+kvm_host_supported_debian_versions: ["12", "13"]
+
+# Modules loaded now and at boot, plus the vendor module detected in
+# tasks/preflight.yml (kvm_intel for vmx, kvm_amd for svm, none without either).
+kvm_host_modules: "{{ ['kvm', 'vhost_net', 'tun', 'bridge'] + ([kvm_host_vendor_module] if kvm_host_vendor_module != 'none' else []) }}"

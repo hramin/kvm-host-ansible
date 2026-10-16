@@ -1,0 +1,80 @@
+---
+# Lock-out guards: nothing is changed unless the inventory is complete, the
+# target is the expected Debian release, and this controller will still be
+# able to reach SSH once the firewall and AllowGroups are in place.
+- name: Assert the inventory is filled in
+  ansible.builtin.assert:
+    that:
+      - (base_hardening_preflight_values | to_json) is not search('CHANGEME')
+      - base_hardening_management_cidrs | length > 0
+      - base_hardening_admin_users | length > 0
+      - base_hardening_admin_users | selectattr('name', 'defined') | list | length == base_hardening_admin_users | length
+      - base_hardening_admin_users | selectattr('ssh_keys', 'defined') | rejectattr('ssh_keys', 'falsy') | list | length
+        == base_hardening_admin_users | length
+    fail_msg: >-
+      Fill in the inventory first: no CHANGEME values, at least one management CIDR,
+      and at least one admin user, each with a name and an SSH key.
+    quiet: true
+  vars:
+    base_hardening_preflight_values:
+      - "{{ base_hardening_debian_version }}"
+      - "{{ base_hardening_management_cidrs }}"
+      - "{{ base_hardening_admin_users }}"
+      - "{{ ansible_user | default('') }}"
+
+- name: Assert the target runs the chosen Debian release
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Debian'
+      - base_hardening_debian_version | string in base_hardening_supported_debian_versions
+      - ansible_facts['distribution_major_version'] == base_hardening_debian_version | string
+    fail_msg: >-
+      Expected Debian {{ base_hardening_debian_version }} (supported:
+      {{ base_hardening_supported_debian_versions | join(', ') }}); the target reports
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+    quiet: true
+
+# Runs on the target as the connecting user, where SSH_CONNECTION holds the
+# controller's address as the host sees it (after any NAT).
+- name: Check that this SSH connection comes from a management CIDR
+  ansible.builtin.command:
+    argv: "{{ ['python3', '-c', base_hardening_cidr_check_script] + base_hardening_management_cidrs }}"
+  vars:
+    base_hardening_cidr_check_script: |
+      import ipaddress, os, sys
+      try:
+          client = ipaddress.ip_address(os.environ["SSH_CONNECTION"].split()[0])
+          client = client.ipv4_mapped or client if client.version == 6 else client
+          nets = [ipaddress.ip_network(n, strict=False) for n in sys.argv[1:]]
+      except (KeyError, IndexError, ValueError) as exc:
+          sys.exit("cannot check: %s" % exc)
+      print(client)
+      sys.exit(0 if any(client in n for n in nets) else 3)
+  become: false
+  register: base_hardening_cidr_check
+  changed_when: false
+  check_mode: false   # read-only; must also run under --check
+  failed_when: base_hardening_cidr_check.rc not in [0, 3]
+  when:
+    - base_hardening_check_controller_in_management_cidrs | bool
+    - ansible_connection | default('ssh') in base_hardening_ssh_connection_plugins
+
+- name: Assert the controller is inside the management networks
+  ansible.builtin.assert:
+    that:
+      - base_hardening_cidr_check.rc == 0
+    fail_msg: >-
+      This controller connects from {{ base_hardening_cidr_check.stdout }}, outside
+      base_hardening_management_cidrs {{ base_hardening_management_cidrs }}: the firewall
+      would drop the next SSH connection. Fix the CIDR list first.
+    quiet: true
+  when: base_hardening_cidr_check is not skipped
+
+- name: Note that the connecting account loses SSH access
+  ansible.builtin.debug:
+    msg: >-
+      '{{ ansible_user }}' is not an admin user. After this run only members of
+      '{{ base_hardening_admin_group }}' can log in; use -e ansible_user=<admin> next time.
+  when:
+    - ansible_user is defined
+    - ansible_user not in (base_hardening_admin_users | map(attribute='name') | list)

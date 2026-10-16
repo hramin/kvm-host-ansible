@@ -1,0 +1,54 @@
+---
+# Directory pool: guest images are files (qcow2/raw) on the filesystem that is
+# mounted at kvm_host_storage_pool_path — the local NVMe in production.
+- name: Assert the storage pool path is a mount point
+  ansible.builtin.assert:
+    that:
+      - kvm_host_storage_pool_path in (ansible_facts['mounts'] | map(attribute='mount') | list)
+    fail_msg: >-
+      {{ kvm_host_storage_pool_path }} is not a mount point. Mount the NVMe filesystem there first,
+      or set kvm_host_storage_pool_require_mountpoint: false.
+    quiet: true
+  when: kvm_host_storage_pool_require_mountpoint | bool
+
+- name: Create the storage pool directory
+  ansible.builtin.file:
+    path: "{{ kvm_host_storage_pool_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0711"
+
+- name: Define the storage pool
+  community.libvirt.virt_pool:
+    command: define
+    name: "{{ kvm_host_storage_pool_name }}"
+    xml: "{{ lookup('ansible.builtin.template', 'storage-pool.xml.j2') }}"
+
+# "define" never changes an existing pool, so catch a path change explicitly
+# instead of silently keeping the old one.
+- name: Read the storage pool definition
+  community.libvirt.virt_pool:
+    command: get_xml
+    name: "{{ kvm_host_storage_pool_name }}"
+  register: kvm_host_pool_xml
+  changed_when: false
+
+- name: Assert the existing pool points at kvm_host_storage_pool_path
+  ansible.builtin.assert:
+    that:
+      - ('<path>' ~ kvm_host_storage_pool_path ~ '</path>') in kvm_host_pool_xml.get_xml
+    fail_msg: >-
+      Pool '{{ kvm_host_storage_pool_name }}' already exists with another path. Move or remove it
+      (virsh pool-destroy / pool-undefine) before changing kvm_host_storage_pool_path.
+    quiet: true
+
+- name: Start the storage pool
+  community.libvirt.virt_pool:
+    name: "{{ kvm_host_storage_pool_name }}"
+    state: active
+
+- name: Autostart the storage pool
+  community.libvirt.virt_pool:
+    name: "{{ kvm_host_storage_pool_name }}"
+    autostart: true

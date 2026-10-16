@@ -1,0 +1,69 @@
+---
+# kvm_host — the values a site sets (in inventory group_vars).
+
+# Continue without vmx/svm and /dev/kvm: guests then run under QEMU software
+# emulation (10-50x slower) and the play prints a warning. Lab VMs only.
+kvm_host_allow_software_emulation: false
+# Nested virtualization (kvm_intel/kvm_amd "nested"); applies when the module next loads.
+kvm_host_nested_virtualization: true
+
+# Directory storage pool for guest images; mount the NVMe filesystem at the path.
+kvm_host_storage_pool_name: nvme
+kvm_host_storage_pool_path: /var/lib/libvirt/nvme
+# Fail unless the path is its own mount point, so images never fill the root filesystem.
+kvm_host_storage_pool_require_mountpoint: false
+
+# libvirt's "default" NAT network (virbr0, 192.168.122.0/24, dnsmasq on the host).
+# false: stopped and not autostarted, but still defined. true: started and
+# autostarted (single-NIC hosts with no bridge).
+kvm_host_libvirt_default_network_enabled: false
+
+# Running guests on host shutdown: shutdown (clean ACPI shutdown) or suspend
+# (RAM saved to /var/lib/libvirt/qemu/save, needs disk space = guest RAM).
+kvm_host_guests_on_shutdown: shutdown
+# On boot: start (guests that were running come back) or ignore.
+kvm_host_guests_on_boot: start
+# Seconds to wait for guests to shut down before the host continues.
+kvm_host_guests_shutdown_timeout: 300
+
+# Users added to the libvirt group (virsh without sudo); default: the admin users.
+kvm_host_libvirt_users: "{{ base_hardening_admin_users | default([]) | map(attribute='name') | list }}"
+
+# Hypervisor packages (installed without recommends).
+kvm_host_packages:
+  - qemu-system-x86
+  - qemu-utils
+  - libvirt-daemon-system
+  - libvirt-clients
+  - ovmf             # UEFI firmware for guests
+  - lvm2
+  - dnsmasq-base     # DHCP/DNS for libvirt NAT networks
+  - python3-libvirt  # needed by the community.libvirt modules
+  - python3-lxml     # needed by the community.libvirt modules
+  - nvme-cli
+
+# Hypervisor sysctls, written to /etc/sysctl.d/60-kvm-host.conf with the
+# "why" as a comment and set live. net.bridge.* exists only while br_netfilter
+# is loaded; a udev rule applies it whenever the module loads.
+kvm_host_sysctl_settings:
+  - name: net.bridge.bridge-nf-call-iptables
+    value: 0
+    why: Bridged guest frames must not pass the host's IPv4 netfilter hooks (host rules would filter VMs; costs CPU).
+  - name: net.bridge.bridge-nf-call-ip6tables
+    value: 0
+    why: Same for IPv6 - guest traffic on a bridge is the guest's business, not the host firewall's.
+  - name: net.bridge.bridge-nf-call-arptables
+    value: 0
+    why: Same for ARP - do not run bridged ARP through arptables.
+  - name: vm.swappiness
+    value: 10
+    why: Prefer dropping page cache over swapping guest RAM; a swapped-out guest page stalls the whole vCPU.
+  - name: vm.dirty_background_ratio
+    value: 5
+    why: Start background writeback early so host-cached guest writes reach the NVMe in small batches.
+  - name: vm.dirty_ratio
+    value: 10
+    why: Cap dirty page cache so a forced flush cannot block every guest's I/O for long on large-RAM hosts.
+  - name: fs.aio-max-nr
+    value: 1048576
+    why: QEMU aio=native needs AIO contexts per disk queue; the 65536 default runs out with many NVMe-backed guests.

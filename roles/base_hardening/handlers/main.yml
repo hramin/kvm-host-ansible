@@ -1,0 +1,31 @@
+---
+# Handlers only reload/restart the service whose own configuration changed.
+# Order matters: handlers run in the order they are defined here.
+
+# reload = SIGHUP: sshd re-reads its config, existing sessions stay up.
+- name: Reload ssh
+  ansible.builtin.systemd_service:
+    name: ssh
+    state: reloaded
+
+# Reload re-runs "nft -f /etc/nftables.conf", which atomically replaces only
+# the role's own table. Never "restarted": ExecStop would delete the table first.
+- name: Reload nftables
+  ansible.builtin.systemd_service:
+    name: nftables
+    state: reloaded
+
+- name: Restart chrony
+  ansible.builtin.systemd_service:
+    name: chrony
+    state: restarted
+
+- name: Restart journald
+  ansible.builtin.systemd_service:
+    name: systemd-journald
+    state: restarted
+
+# augenrules rebuilds /etc/audit/audit.rules from rules.d and loads it.
+- name: Load audit rules
+  ansible.builtin.command: augenrules --load
+  changed_when: true

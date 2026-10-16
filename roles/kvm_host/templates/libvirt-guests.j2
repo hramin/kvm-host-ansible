@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# libvirt-guests: what happens to running guests when the host shuts down and boots.
+
+# Hypervisor URIs to manage.
+URIS=default
+
+# On boot: "start" restarts the guests that were running at shutdown
+# (or resumes them when they were suspended), "ignore" leaves them alone.
+# Guests marked autostart are started by libvirtd either way.
+ON_BOOT={{ kvm_host_guests_on_boot }}
+START_DELAY=0
+
+# On shutdown: "shutdown" asks each guest to shut down cleanly (ACPI);
+# "suspend" saves guest RAM to disk (managed save) and restores it on boot.
+ON_SHUTDOWN={{ kvm_host_guests_on_shutdown }}
+PARALLEL_SHUTDOWN=4
+SHUTDOWN_TIMEOUT={{ kvm_host_guests_shutdown_timeout }}
+
+BYPASS_CACHE=0
+# Resync guest clocks after a resume (needs the QEMU guest agent in the guest).
+SYNC_TIME=1

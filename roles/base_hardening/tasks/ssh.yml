@@ -1,0 +1,21 @@
+---
+# ssh must be running before the config is validated: sshd -t needs the
+# privilege separation directory /run/sshd, which the unit creates.
+- name: Ensure the SSH daemon is enabled and running
+  ansible.builtin.systemd_service:
+    name: ssh
+    enabled: true
+    state: started
+
+# validate: a config sshd would reject is never written, so a reload can
+# not take SSH down.
+- name: Deploy hardened sshd_config
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Reload ssh

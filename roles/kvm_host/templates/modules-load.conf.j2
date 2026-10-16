@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# Modules a KVM/libvirt host needs at boot.
+{% for module in kvm_host_modules %}
+{{ module }}
+{% endfor %}

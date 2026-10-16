@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# net.bridge.* sysctls only exist while br_netfilter is loaded, so
+# systemd-sysctl at boot cannot set them if the module loads later (Docker,
+# a CNI, ...). Re-apply /etc/sysctl.d net.bridge values when it loads, so
+# bridged guest traffic keeps bypassing the host's netfilter hooks.
+ACTION=="add", SUBSYSTEM=="module", KERNEL=="br_netfilter", RUN+="/usr/lib/systemd/systemd-sysctl --prefix=/net/bridge"

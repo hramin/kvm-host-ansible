@@ -1,0 +1,99 @@
+---
+- name: Load KVM-related modules at boot
+  ansible.builtin.template:
+    src: modules-load.conf.j2
+    dest: /etc/modules-load.d/kvm-host.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure nested virtualization for the KVM vendor module
+  ansible.builtin.template:
+    src: kvm-modprobe.conf.j2
+    dest: /etc/modprobe.d/kvm-host.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: kvm_host_vendor_module != 'none'
+
+- name: Load KVM-related modules now
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ kvm_host_modules }}"
+
+# A loaded module keeps its parameters; a changed "nested" value needs a reload.
+- name: Read the current nested virtualization setting
+  ansible.builtin.slurp:
+    src: "/sys/module/{{ kvm_host_vendor_module }}/parameters/nested"
+  register: kvm_host_nested_current
+  when: kvm_host_vendor_module != 'none'
+
+- name: Report that the nested setting applies after a reboot
+  ansible.builtin.debug:
+    msg: >-
+      {{ kvm_host_vendor_module }} is loaded with nested={{ kvm_host_nested_current.content | b64decode | trim }};
+      the new value applies after a reboot (or a module reload with no guests running).
+  when:
+    - kvm_host_vendor_module != 'none'
+    - (kvm_host_nested_current.content | b64decode | trim) not in
+      (kvm_host_nested_virtualization | bool | ternary(['1', 'Y'], ['0', 'N']))
+
+# /dev/kvm appears once kvm and the vendor module are loaded.
+- name: Check /dev/kvm
+  ansible.builtin.stat:
+    path: /dev/kvm
+  register: kvm_host_dev_kvm
+
+- name: Assert /dev/kvm exists unless software emulation is allowed
+  ansible.builtin.assert:
+    that:
+      - kvm_host_dev_kvm.stat.exists or kvm_host_allow_software_emulation | bool
+    fail_msg: >-
+      /dev/kvm is missing although the KVM modules are loaded. Enable virtualization in the
+      BIOS (or nested virtualization for a VM), or set kvm_host_allow_software_emulation: true.
+    quiet: true
+
+- name: Write hypervisor sysctls
+  ansible.builtin.template:
+    src: sysctl-kvm-host.conf.j2
+    dest: /etc/sysctl.d/60-kvm-host.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Check whether br_netfilter is loaded (net.bridge.* sysctls exist)
+  ansible.builtin.stat:
+    path: /proc/sys/net/bridge/bridge-nf-call-iptables
+  register: kvm_host_bridge_nf
+
+# The file above is the boot-time source; this sets the live values key by key
+# (and leaves the file as it is when the value already matches).
+- name: Apply hypervisor sysctls
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value | string }}"
+    sysctl_file: /etc/sysctl.d/60-kvm-host.conf
+    sysctl_set: "{{ not item.name.startswith('net.bridge.') or kvm_host_bridge_nf.stat.exists }}"
+    reload: false
+  loop: "{{ kvm_host_sysctl_settings }}"
+  loop_control:
+    label: "{{ item.name }} = {{ item.value }}"
+
+# Re-applies net.bridge.* from sysctl.d whenever br_netfilter loads later
+# (Docker, a CNI, ...). The directory is missing when udev is not installed.
+- name: Create the udev rules directory
+  ansible.builtin.file:
+    path: /etc/udev/rules.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Re-apply bridge sysctls whenever br_netfilter loads
+  ansible.builtin.template:
+    src: bridge-nf-udev.rules.j2
+    dest: /etc/udev/rules.d/99-kvm-host-bridge-nf.rules
+    owner: root
+    group: root
+    mode: "0644"

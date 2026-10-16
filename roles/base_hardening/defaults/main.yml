@@ -1,0 +1,65 @@
+---
+# base_hardening — the values a site sets (in inventory group_vars).
+# Fixed choices (sshd options, journald limits, firewall details) live in the
+# templates with a comment saying why.
+
+# Debian major version every host must run ("12" or "13"); preflight fails otherwise.
+base_hardening_debian_version: "13"
+
+# Networks allowed to reach SSH (IPv4/IPv6 CIDRs). Required. Preflight fails
+# when the controller's own SSH source address is outside all of them.
+base_hardening_management_cidrs: []
+# Set false only when connecting through a jump host/NAT that the CIDRs cover.
+base_hardening_check_controller_in_management_cidrs: true
+
+# Admin accounts: SSH login, passwordless sudo, libvirt access. Required.
+# Each item: {name: <login>, ssh_keys: [<public key>, ...]}. Keys that are not
+# listed are removed from these accounts' authorized_keys.
+base_hardening_admin_users: []
+# Group used for sshd AllowGroups and the sudoers rule.
+base_hardening_admin_group: admins
+
+# sshd port; the firewall opens it for the management CIDRs only.
+base_hardening_sshd_port: 22
+
+# Extra inbound ports: [{port: 5900-5999, proto: tcp, sources: [<cidr>]}].
+# sources defaults to the management CIDRs.
+base_hardening_firewall_allowed_ports: []
+
+# NTP sources for chrony. Debian's pool by default; use internal servers in production.
+base_hardening_chrony_pools: [2.debian.pool.ntp.org]
+base_hardening_chrony_servers: []
+
+# Disk space the persistent journal may use.
+base_hardening_journald_max_use: 1G
+
+# Base packages: the services this role configures plus a few admin tools.
+base_hardening_packages:
+  - sudo
+  - openssh-server
+  - chrony
+  - nftables
+  - auditd
+  - logrotate
+  - procps        # sysctl
+  - iproute2
+  - ca-certificates
+  - curl
+  - less
+  - vim-tiny
+  - htop
+  - lsof
+  - tcpdump
+  - rsync
+
+# Purged when installed: clear-text remote access, legacy network services, telemetry.
+base_hardening_packages_blocklist:
+  - telnet
+  - inetutils-telnet
+  - rsh-client
+  - talk
+  - nis
+  - xinetd
+  - avahi-daemon
+  - rpcbind
+  - popularity-contest

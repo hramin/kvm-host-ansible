@@ -2,4 +2,7 @@
 *.retry
 .bash_history
 .viminfo
-tests/output/*.tmp
+collections/
+.ansible/
+# Test logs are not committed (scripts/test-idempotency.sh writes them here).
+tests/output/

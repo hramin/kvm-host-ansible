@@ -1,0 +1,20 @@
+---
+# cache_valid_time: the cache is refreshed at most every 30 minutes, and an
+# update alone never reports "changed".
+- name: Refresh the apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 1800
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ base_hardening_packages }}"
+    state: present
+    install_recommends: false
+
+# Absent packages are a no-op; only installed ones are purged (first run only).
+- name: Purge blocklisted packages
+  ansible.builtin.apt:
+    name: "{{ base_hardening_packages_blocklist }}"
+    state: absent
+    purge: true

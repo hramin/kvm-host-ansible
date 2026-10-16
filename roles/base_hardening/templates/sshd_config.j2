@@ -1,20 +1,20 @@
 # {{ ansible_managed }}
-# Ubuntu 22.04 hardened sshd_config
-# References: CIS Ubuntu 22.04 LTS Benchmark, Mozilla OpenSSH Guidelines (Modern)
-
-Include /etc/ssh/sshd_config.d/*.conf
+# Debian 12/13 hardened sshd_config (OpenSSH 9.2 on bookworm, 10.0 on trixie)
+# References: CIS Debian Linux Benchmark, Mozilla OpenSSH Guidelines (Modern)
 
 # ── Network ────────────────────────────────────────────────────────────────────
-Port {{ sshd_config.Port | default('22') }}
-ListenAddress {{ sshd_config.ListenAddress | default('0.0.0.0') }}
+Port {{ base_hardening_sshd_port }}
+ListenAddress 0.0.0.0
 AddressFamily inet
 
 # ── Host Keys (prefer Ed25519, then ECDSA; drop RSA) ──────────────────────────
 HostKey /etc/ssh/ssh_host_ed25519_key
 HostKey /etc/ssh/ssh_host_ecdsa_key
 
-# ── Cryptography (Mozilla Modern profile, OpenSSH 8.9 / Ubuntu 22.04) ─────────
-KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
+# ── Cryptography (Mozilla Modern profile + post-quantum hybrid KEX) ───────────
+# mlkem768x25519-sha256 exists from OpenSSH 9.9 (Debian 13); sshd refuses to
+# start on an unknown algorithm, so it is only listed where available.
+KexAlgorithms {% if ansible_facts['distribution_major_version'] | int >= 13 %}mlkem768x25519-sha256,{% endif %}sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
 Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
 MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
 
@@ -24,7 +24,7 @@ LogLevel VERBOSE
 
 # ── Authentication ─────────────────────────────────────────────────────────────
 LoginGraceTime 30
-PermitRootLogin {{ sshd_config.PermitRootLogin | default('without-password') }}
+PermitRootLogin no
 StrictModes yes
 MaxAuthTries 3
 MaxSessions 2
@@ -35,15 +35,16 @@ AuthorizedKeysFile .ssh/authorized_keys
 IgnoreRhosts yes
 HostbasedAuthentication no
 
-PasswordAuthentication {{ sshd_config.PasswordAuthentication | default('no') }}
+PasswordAuthentication no
 PermitEmptyPasswords no
-ChallengeResponseAuthentication no
+# ChallengeResponseAuthentication is a deprecated alias since OpenSSH 8.7.
+KbdInteractiveAuthentication no
 
 # Kerberos / GSSAPI — disabled
 KerberosAuthentication no
 GSSAPIAuthentication no
 
-# PAM session and account checks are still needed (fail2ban, pam_limits, etc.)
+# PAM account and session checks are still needed (pam_limits, pam_systemd, ...)
 UsePAM yes
 
 # ── Forwarding / tunnelling — all disabled ─────────────────────────────────────
@@ -61,9 +62,6 @@ ClientAliveInterval 300
 ClientAliveCountMax 2
 MaxStartups 10:30:60
 
-# ── Legal banner ───────────────────────────────────────────────────────────────
-Banner /etc/issue
-
 # ── Environment ───────────────────────────────────────────────────────────────
 AcceptEnv LANG LC_*
 PermitUserEnvironment no
@@ -72,9 +70,11 @@ PermitUserEnvironment no
 Subsystem sftp /usr/lib/openssh/sftp-server
 
 # ── Access control ─────────────────────────────────────────────────────────────
-{% if sshd_config.AllowUsers is defined %}
-AllowUsers {{ sshd_config.AllowUsers }}
-{% endif %}
-{% if sshd_config.AllowGroups is defined %}
-AllowGroups {{ sshd_config.AllowGroups }}
-{% endif %}
+AllowGroups {{ base_hardening_admin_group }}
+
+# ── Drop-ins ───────────────────────────────────────────────────────────────────
+# sshd keeps the FIRST value it reads for a keyword. Debian includes the
+# drop-ins at the top, so e.g. cloud-init's 50-cloud-init.conf
+# ("PasswordAuthentication yes") would override this file. Including them last
+# keeps every value above authoritative; drop-ins can still add new keywords.
+Include /etc/ssh/sshd_config.d/*.conf

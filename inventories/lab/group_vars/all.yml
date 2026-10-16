@@ -1,0 +1,24 @@
+---
+# Lab values for lab-kvm01 (Debian 12 VirtualBox VM).
+
+# First connection: the user the Debian installer created (sudo + my key).
+# It is also the admin user below, so it keeps SSH access after Run 0.
+ansible_user: hra
+
+base_hardening_debian_version: "12"
+
+# Host-only network; the controller (VirtualBox host, 192.168.56.1) must be inside it.
+base_hardening_management_cidrs: [192.168.56.10/24]
+
+base_hardening_admin_users:
+  - name: hra
+    ssh_keys:
+      # Replace with the full public key line; preflight stops while CHANGEME is left.
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFW5s6ThRmim+6Q3L/K9yjf+Ztflx1yKmNypLtvsaVsE Hamid.r.amini@outlook.com"   # "ssh-ed25519 AAAA... comment"
+
+# Set true only if the VirtualBox VM has no nested VT-x (guests then run without KVM).
+kvm_host_allow_software_emulation: true
+
+# Single-NIC lab: no bridge, so lab guests get libvirt's NAT network.
+kvm_host_libvirt_default_network_enabled: true
+kvm_host_storage_pool_path: /var/lib/libvirt/nvme
