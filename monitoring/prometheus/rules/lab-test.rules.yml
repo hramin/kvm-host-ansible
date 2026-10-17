@@ -1,0 +1,24 @@
+# Lab-only twins of the CPU and memory alerts, for a 30-second load test.
+# Same idea as HostCpuSaturated / HostMemoryPressure, but with short windows:
+# in production a 30 s spike must never page anyone, so those keep their long "for".
+# Delete this file outside the lab.
+
+groups:
+  - name: lab-demo
+    interval: 5s
+    rules:
+      - alert: LabCpuPressure
+        expr: 1 - avg by (host, instance, job) (rate(node_cpu_seconds_total{mode="idle"}[30s])) > 0.80
+        for: 10s
+        labels: {severity: warning, component: cpu-lab, env: lab}
+        annotations:
+          summary: "LAB: {{ $labels.host }} CPU {{ $value | humanizePercentage }} busy"
+          description: "Short-window demo of HostCpuSaturated (production: >90% for 15m)."
+
+      - alert: LabMemoryPressure
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.15
+        for: 10s
+        labels: {severity: warning, component: memory-lab, env: lab}
+        annotations:
+          summary: "LAB: {{ $labels.host }} only {{ $value | humanizePercentage }} memory available"
+          description: "Short-window demo of HostMemoryPressure (production: <10% for 10m)."

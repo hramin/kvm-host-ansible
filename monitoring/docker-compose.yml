@@ -1,0 +1,23 @@
+# Prometheus + Alertmanager for the lab, run in WSL2 (Docker).
+# Host networking: both listen on the WSL host (localhost:9090, localhost:9093,
+# also reachable from the Windows browser) and avoid Docker subnet clashes.
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.2
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle          # allows: curl -X POST localhost:9090/-/reload
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
