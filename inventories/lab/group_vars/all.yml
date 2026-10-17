@@ -22,3 +22,7 @@ kvm_host_allow_software_emulation: true
 # Single-NIC lab: no bridge, so lab guests get libvirt's NAT network.
 kvm_host_libvirt_default_network_enabled: true
 kvm_host_storage_pool_path: /var/lib/libvirt/nvme
+
+base_hardening_firewall_allowed_ports:      # sources default to the management CIDRs
+  - {port: 9100, proto: tcp}
+  - {port: 9177, proto: tcp}
