@@ -1,0 +1,45 @@
+# Routing: critical pages now, warning waits for business hours.
+# The receivers have no integrations in the lab: alerts are visible in the
+# Alertmanager UI (http://localhost:9093). In production, add e.g.
+# pagerduty_configs to "pager" and slack_configs/email_configs to "business-hours".
+
+route:
+  receiver: business-hours
+  group_by: [alertname, host]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: pager
+      group_wait: 10s
+      repeat_interval: 1h
+
+    - matchers: ['severity="warning"']
+      receiver: business-hours
+      # Outside these hours warnings are not notified (they still show in the UI);
+      # if still firing when business hours start, they are sent then.
+      active_time_intervals: [business-hours]
+
+inhibit_rules:
+  # Host unreachable: everything else from that host is noise.
+  - source_matchers: ['alertname="HostDown"']
+    target_matchers: ['alertname!="HostDown"']
+    equal: [host]
+  # A critical alert hides the warning of the same kind on the same host.
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
+    equal: [host, component]
+
+time_intervals:
+  - name: business-hours
+    time_intervals:
+      - weekdays: ['monday:friday']
+        times:
+          - start_time: '09:00'
+            end_time: '18:00'
+        location: 'UTC'          # set to the on-call team's time zone
+
+receivers:
+  - name: pager
+  - name: business-hours

@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    env: lab
+
+rule_files:
+  - rules/*.rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["localhost:9093"]
+
+scrape_configs:
+  # "host" is the label alerts are grouped and inhibited by; "instance"
+  # differs per exporter port, "host" does not.
+  # Lab: 5 s scrapes so the 30 s load tests show up quickly (15-30 s in production).
+  - job_name: node
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["192.168.56.10:9100"]
+        labels:
+          host: lab-kvm01
+
+  - job_name: libvirt
+    scrape_interval: 5s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ["192.168.56.10:9177"]
+        labels:
+          host: lab-kvm01
